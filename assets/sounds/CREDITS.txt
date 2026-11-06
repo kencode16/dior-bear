@@ -1,0 +1,27 @@
+音效來源說明（bark.m4a）
+================================
+
+【原始檔】
+- 原檔名：Ladrido perro.ogg（Ogg Opus，單聲道，48 kHz，長 3.73 秒，內有三聲狗叫）
+- 檔案頁網址：https://commons.wikimedia.org/wiki/File:Ladrido_perro.ogg
+- 原檔下載網址：https://upload.wikimedia.org/wikipedia/commons/f/fd/Ladrido_perro.ogg
+- 檔案說明（西班牙文原文）：Ladrido de un perro (2026)　＝「一隻狗的吠叫（2026）」
+- 作者：Edo.pt2（Wikimedia Commons 使用者 User:Edo.pt2）
+- 上傳日期：2026-04-07（頁面註明 source = own work／本人作品）
+
+【授權】
+- 授權：CC0 1.0（Creative Commons Zero，公眾領域貢獻宣告）
+- 檔案頁上的授權資訊：
+  - 頁面原始碼的授權段落為 {{self|cc-zero}}（作者本人以 CC0 釋出）
+  - Commons API 回傳的授權欄位：LicenseShortName = "CC0"；UsageTerms = "Creative Commons Zero, Public Domain Dedication"
+- CC0 不要求署名，也沒有「相同方式分享」的限制；這裡仍記下出處，方便日後查證。
+- 查證日期：2026-11-06
+
+【剪輯內容】
+1. 擷取原檔 1.085 秒到 2.200 秒（第 1、2 聲叫，兩聲間隔約 0.65 秒；第 3 聲沒有用），成品長約 1.115 秒。
+2. 重新取樣：48 kHz 改成 44.1 kHz；輸出為單聲道（原檔本來就是單聲道）。
+3. 移除直流偏移，開頭 15 ms 淡入、結尾 20 ms 淡出（升餘弦曲線）。
+4. 音量正規化：峰值調到 -1 dBFS。
+5. 沒有變調、沒有加效果；兩聲都是原錄音，沒有複製拼接。
+6. 轉成 AAC（.m4a，96 kbps 目標位元率），轉檔指令：afconvert -f m4af -d aac -b 96000
+   使用工具：Python（soundfile／numpy／scipy）＋ macOS afconvert。

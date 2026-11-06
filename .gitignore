@@ -1,0 +1,14 @@
+# 只公開遊戲執行需要的檔案（白名單）；企劃、進度、架構、測試、開發工具、風格試作留在本機
+/*
+!/index.html
+!/manifest.webmanifest
+!/sw.js
+!/README.md
+!/.nojekyll
+!/.gitignore
+!/css/
+!/js/
+!/assets/
+!/icons/
+icons/icon_source.html
+.DS_Store

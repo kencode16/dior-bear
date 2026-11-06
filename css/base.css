@@ -1,0 +1,40 @@
+/* 共用基礎樣式（主代理擁有）：色票、字型、背景、按鈕重置。色票取自 style/index_v2.html 風格試作 */
+:root{
+  --cream:#FFF8EE; --cream-2:#FDEEDC; --card:#FFFFFF;
+  --peach:#FFB59A; --pink:#FF9EB5; --pink-deep:#E8668C; --pink-soft:#FFE4EB;
+  --mint:#A8E6B8; --mint-deep:#4FA06A; --mint-soft:#E3F6E8;
+  --lavender:#BBA8F2; --lavender-soft:#EFE9FF;
+  --honey:#FFD36E; --honey-deep:#D99A2B; --honey-soft:#FFF2CC;
+  --milktea:#DDB592; --caramel:#D6A985; --cocoa:#7A4E3A; --ink:#5A3A2E;
+  --sky-soft:#E4F2FC;
+  --gold:#D9AE55; --gold-line:#EBCB86;
+  --cell-a:#FFF7EC; --cell-b:#FCEBD9;
+  --shadow:0 5px 0 rgba(214,169,133,.28), 0 12px 26px rgba(150,100,70,.12);
+  --font:"Arial Rounded MT Bold","Yuanti TC","PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+}
+*{box-sizing:border-box}
+html{touch-action:manipulation;-webkit-text-size-adjust:100%}
+body{
+  margin:0; color:var(--ink); font-family:var(--font);
+  background-color:#FFF6EA;
+  /* 奶油色菱格絎縫紋：圓潤的鼓起感＋虛線縫線＋小金點 */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cdefs%3E%3CradialGradient id='a'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.85'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Cg fill='url(%23a)'%3E%3Ccircle cx='28' cy='0' r='17'/%3E%3Ccircle cx='0' cy='28' r='17'/%3E%3Ccircle cx='56' cy='28' r='17'/%3E%3Ccircle cx='28' cy='56' r='17'/%3E%3C/g%3E%3Cpath d='M0 0L56 56M56 0L0 56' stroke='%23F2E3CE' stroke-width='4'/%3E%3Cpath d='M0 0L56 56M56 0L0 56' stroke='%23E3CDAD' stroke-width='1.2' stroke-dasharray='3 3.5'/%3E%3Cg fill='%23E3BF72'%3E%3Ccircle cx='28' cy='28' r='2.3'/%3E%3Ccircle cx='0' cy='0' r='2.3'/%3E%3Ccircle cx='56' cy='0' r='2.3'/%3E%3Ccircle cx='0' cy='56' r='2.3'/%3E%3Ccircle cx='56' cy='56' r='2.3'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:56px 56px;
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+  -webkit-user-select:none; user-select:none;
+}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+.app{max-width:1180px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 14px calc(36px + env(safe-area-inset-bottom))}
+html,body{height:100%}
+#app{position:relative;min-height:100%;max-width:1180px;margin:0 auto}
+.screen{position:relative;min-height:100vh;min-height:100dvh;padding:calc(10px + env(safe-area-inset-top)) 14px calc(20px + env(safe-area-inset-bottom))}
+/* 共用元件 */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 20px;border-radius:999px;background:var(--pink);color:#fff;font-weight:700;font-size:17px;box-shadow:0 4px 0 var(--pink-deep);transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--pink-deep)}
+.btn.mint{background:var(--mint);color:var(--ink);box-shadow:0 4px 0 var(--mint-deep)}
+.btn.honey{background:var(--honey);color:var(--ink);box-shadow:0 4px 0 var(--honey-deep)}
+.btn.ghost{background:var(--card);color:var(--ink);border:2px solid var(--gold-line);box-shadow:0 3px 0 var(--gold-line)}
+.card{background:var(--card);border:2px solid var(--gold-line);border-radius:22px;box-shadow:var(--shadow)}
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%);z-index:1000;background:var(--card);border:2px solid var(--gold-line);border-radius:999px;padding:8px 18px;box-shadow:var(--shadow);font-weight:700;animation:toastIn .25s ease-out}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}

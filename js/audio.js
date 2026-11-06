@@ -1,0 +1,366 @@
+// 聲音（F 擁有）：全部 WebAudio 合成；狗叫用 CC0 真實錄音 assets/sounds/bark.m4a（失敗退回合成）。
+// API 見 架構.md：unlock() sfx(name, opts) setSfx(on) setMusic(on) playMusic(track) stopMusic()
+// iOS：AudioContext 只在第一次觸控時（unlock）建立；之前呼叫 sfx 會靜靜略過，playMusic 會記住曲子、解鎖後才播。
+
+const BARK_URL = new URL('../assets/sounds/bark.m4a', import.meta.url).href;
+
+let ac = null;          // AudioContext
+let master = null;      // 總音量 → compressor → destination
+let sfxBus = null;      // 音效
+let musicBus = null;    // 音樂（開關用這個）
+let unlocked = false;
+let sfxOn = true;
+let musicOn = true;
+
+function ensureContext() {
+  if (ac) return ac;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  try {
+    ac = new AC();
+    const comp = ac.createDynamicsCompressor();
+    comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 6;
+    comp.attack.value = .003; comp.release.value = .2;
+    master = ac.createGain(); master.gain.value = .7;
+    sfxBus = ac.createGain(); sfxBus.gain.value = sfxOn ? 1 : 0;
+    musicBus = ac.createGain(); musicBus.gain.value = musicOn ? .5 : 0;
+    sfxBus.connect(master); musicBus.connect(master); master.connect(comp); comp.connect(ac.destination);
+  } catch (e) { ac = null; }
+  return ac;
+}
+
+// ---------------- 基本發聲 ----------------
+function tone({ freq, type = 'sine', t = 0, dur = .3, vol = .2, attack = .004, freqEnd, glide = .6, out, vibrato = 0 }) {
+  const now = ac.currentTime + t, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, now);
+  if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, now + dur * glide);
+  if (vibrato) {
+    const l = ac.createOscillator(), lg = ac.createGain();
+    l.frequency.value = 6; lg.gain.value = freq * vibrato;
+    l.connect(lg); lg.connect(o.frequency); l.start(now); l.stop(now + dur + .05);
+  }
+  g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(vol, now + attack); g.gain.exponentialRampToValueAtTime(.0001, now + dur);
+  o.connect(g); g.connect(out || sfxBus); o.start(now); o.stop(now + dur + .05);
+}
+let _noise = null;
+function noiseBuf() {
+  if (!_noise) {
+    const len = ac.sampleRate * .6 | 0; _noise = ac.createBuffer(1, len, ac.sampleRate);
+    const d = _noise.getChannelData(0); let seed = 7;
+    for (let i = 0; i < len; i++) { seed = (seed * 16807) % 2147483647; d[i] = seed / 1073741823.5 - 1; }
+  }
+  return _noise;
+}
+function noise({ t = 0, dur = .2, vol = .2, type = 'bandpass', freq = 1200, freqEnd, q = .8, attack = .01, out }) {
+  const now = ac.currentTime + t, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = noiseBuf(); f.type = type; f.frequency.setValueAtTime(freq, now); f.Q.value = q;
+  if (freqEnd) f.frequency.exponentialRampToValueAtTime(freqEnd, now + dur);
+  g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(vol, now + attack); g.gain.exponentialRampToValueAtTime(.0001, now + dur);
+  s.connect(f); f.connect(g); g.connect(out || sfxBus); s.start(now); s.stop(now + dur + .05);
+}
+/** 鈴鐺：非整數倍泛音 */
+function bell(f, t = 0, v = 1) {
+  [[1, .2, 1.3], [2.01, .07, .85], [2.76, .09, .6], [4.07, .045, .35], [5.4, .03, .22]]
+    .forEach(([m, vol, d]) => tone({ freq: f * m, t, dur: d, vol: vol * v, attack: .002 }));
+}
+/** 木琴：短促、帶一點泛音 */
+function xylo(f, t = 0, v = 1) {
+  tone({ freq: f, t, dur: .32, vol: .14 * v, attack: .002 });
+  tone({ freq: f * 3.98, t, dur: .08, vol: .035 * v, attack: .001 });
+  tone({ freq: f * 2, t, dur: .16, vol: .04 * v, attack: .002, type: 'triangle' });
+}
+/** 泡泡：音高往上滑的圓潤短音 */
+function bubble(f, t = 0, v = 1) {
+  tone({ freq: f, freqEnd: f * 2.1, t, dur: .15, vol: .2 * v });
+  tone({ freq: f * 1.5, freqEnd: f * 2.9, t: t + .035, dur: .11, vol: .07 * v });
+}
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+// 五聲音階（C 大調），pop 依連鎖波數往上爬
+const PENTA = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93, 96];
+
+// ---------------- 狗叫 ----------------
+let barkBuf = null, barkLoad = null;
+function loadBark() {
+  if (!ac) return Promise.resolve(null);
+  if (!barkLoad) {
+    barkLoad = fetch(BARK_URL)
+      .then(r => { if (!r.ok) throw new Error('bark ' + r.status); return r.arrayBuffer(); })
+      .then(buf => new Promise((ok, ng) => { const p = ac.decodeAudioData(buf, ok, ng); if (p && p.then) p.then(ok, ng); }))
+      .then(b => { barkBuf = b; return b; })
+      .catch(() => { barkBuf = null; return null; });
+  }
+  return barkLoad;
+}
+function synthBark(t) {
+  const now = ac.currentTime + t;
+  const o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(320, now); o.frequency.linearRampToValueAtTime(390, now + .025); o.frequency.exponentialRampToValueAtTime(190, now + .17);
+  f.type = 'bandpass'; f.frequency.setValueAtTime(950, now); f.frequency.exponentialRampToValueAtTime(480, now + .17); f.Q.value = 1.3;
+  g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(.55, now + .012); g.gain.exponentialRampToValueAtTime(.14, now + .09); g.gain.exponentialRampToValueAtTime(.0001, now + .21);
+  o.connect(f); f.connect(g); g.connect(sfxBus); o.start(now); o.stop(now + .24);
+  noise({ t, dur: .13, vol: .3, freq: 1300, q: .9, attack: .006 });
+  tone({ freq: 170, freqEnd: 105, t, dur: .13, vol: .22 });
+}
+async function bark() {
+  const b = barkBuf || await Promise.race([loadBark(), new Promise(r => setTimeout(() => r(null), 700))]);
+  if (!ac) return;
+  if (b) { const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = b; g.gain.value = .95; s.connect(g); g.connect(sfxBus); s.start(); }
+  else { synthBark(0); synthBark(.27); }
+}
+
+// ---------------- 音效表 ----------------
+const SFX = {
+  tap() { tone({ freq: 660, freqEnd: 900, dur: .09, vol: .07, type: 'triangle' }); },
+  select() { bubble(880, 0, .45); },
+  swap() { tone({ freq: 400, freqEnd: 640, dur: .13, vol: .08 }); },
+  swapBack() { tone({ freq: 620, freqEnd: 420, dur: .12, vol: .08 }); tone({ freq: 520, freqEnd: 330, t: .11, dur: .14, vol: .07, vibrato: .02 }); },
+  pop(o = {}) {
+    const w = Math.max(1, Math.min(PENTA.length, o.wave || 1));
+    const f = mtof(PENTA[w - 1]) / 2;
+    bubble(f); xylo(mtof(PENTA[w - 1]), .01, .8);
+    if (w >= 3) tone({ freq: mtof(PENTA[w - 1] + 12), t: .05, dur: .25, vol: .04, attack: .002 });
+  },
+  create() {
+    [76, 79, 84, 88].forEach((m, i) => xylo(mtof(m), i * .055, .9));
+    noise({ t: .2, dur: .35, vol: .05, type: 'highpass', freq: 6000, attack: .05 });
+    bell(mtof(96), .22, .4);
+  },
+  paw() {
+    noise({ dur: .32, vol: .2, freq: 500, freqEnd: 3200, q: 1.2, attack: .03 });
+    tone({ freq: 180, freqEnd: 90, dur: .16, vol: .2 });
+    tone({ freq: 660, freqEnd: 1320, t: .05, dur: .22, vol: .06, type: 'triangle' });
+  },
+  bomb() {
+    tone({ freq: 150, freqEnd: 48, dur: .45, vol: .38, glide: .8 });
+    noise({ dur: .45, vol: .22, type: 'lowpass', freq: 900, freqEnd: 200, q: .5, attack: .005 });
+    [0, 1, 2, 3].forEach(i => bubble(500 + i * 130, .12 + i * .06, .5));
+  },
+  perfume() {
+    noise({ dur: .4, vol: .14, type: 'highpass', freq: 3800, q: .5, attack: .03 });
+    [88, 91, 93, 96, 100].forEach((m, i) => bell(mtof(m), .08 + i * .07, .35));
+  },
+  combo() {
+    SFX.paw(); SFX.bomb();
+    [72, 76, 79, 84].forEach(m => tone({ freq: mtof(m), t: .2, dur: .7, vol: .05, type: 'triangle', attack: .02 }));
+  },
+  snow() {
+    noise({ dur: .12, vol: .1, type: 'highpass', freq: 5000, attack: .002 });
+    noise({ t: .05, dur: .1, vol: .07, type: 'highpass', freq: 6500, attack: .002 });
+    tone({ freq: mtof(98), t: .02, dur: .3, vol: .04, attack: .002 });
+  },
+  crate() {
+    noise({ dur: .07, vol: .25, freq: 900, q: 2, attack: .002 });
+    tone({ freq: 230, freqEnd: 170, dur: .12, vol: .18, type: 'triangle' });
+    tone({ freq: 190, freqEnd: 140, t: .09, dur: .12, vol: .14, type: 'triangle' });
+  },
+  unlock() { tone({ freq: 300, freqEnd: 620, dur: .2, vol: .12, vibrato: .03 }); xylo(mtof(84), .12, .7); },
+  honeySpread() { tone({ freq: 220, freqEnd: 120, dur: .35, vol: .14, glide: .9 }); noise({ dur: .25, vol: .05, type: 'lowpass', freq: 500, attack: .05 }); },
+  baby() { [79, 84, 88].forEach((m, i) => bell(mtof(m), i * .1, .55)); tone({ freq: 520, freqEnd: 780, t: .32, dur: .2, vol: .06 }); },
+  shuffle() { for (let i = 0; i < 6; i++) tone({ freq: 500 + (i % 2 ? 300 : 0), freqEnd: 900 - (i % 2 ? 300 : 0), t: i * .06, dur: .1, vol: .05, type: 'triangle' }); },
+  win() {
+    const horn = (m, t, d) => {
+      const now = ac.currentTime + t, o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = 'sawtooth'; o.frequency.value = mtof(m);
+      f.type = 'lowpass'; f.frequency.setValueAtTime(900, now); f.frequency.linearRampToValueAtTime(2200, now + .06); f.Q.value = .7;
+      g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(.09, now + .03); g.gain.setValueAtTime(.09, now + d * .7); g.gain.exponentialRampToValueAtTime(.0001, now + d);
+      o.connect(f); f.connect(g); g.connect(sfxBus); o.start(now); o.stop(now + d + .05);
+    };
+    horn(67, 0, .16); horn(72, .16, .16); horn(76, .32, .16); horn(79, .48, .6);
+    bell(mtof(91), .5, .7); bell(mtof(96), .66, .5);
+  },
+  lose() {
+    [67, 64, 60].forEach((m, i) => tone({ freq: mtof(m), freqEnd: mtof(m) * .97, t: i * .26, dur: i === 2 ? .7 : .3, vol: .1, type: 'triangle', vibrato: i === 2 ? .015 : 0 }));
+  },
+  star(o = {}) {
+    const n = Math.max(1, Math.min(3, o.n || 1));
+    const m = [84, 88, 91][n - 1];
+    bell(mtof(m), 0, .9); xylo(mtof(m + 12), .03, .5);
+    noise({ t: .05, dur: .3, vol: .04, type: 'highpass', freq: 7000, attack: .03 });
+  },
+  buy() { bell(mtof(83), 0, .7); bell(mtof(88), .1, .8); tone({ freq: 1200, freqEnd: 2000, t: .02, dur: .08, vol: .05, type: 'square' }); },
+  equip() { noise({ dur: .18, vol: .08, freq: 1800, freqEnd: 3500, q: 1, attack: .04 }); xylo(mtof(88), .1, .6); },
+  page() { noise({ dur: .09, vol: .07, freq: 2200, q: .7, attack: .01 }); noise({ t: .06, dur: .08, vol: .05, freq: 3000, q: .7, attack: .01 }); },
+  bell() { bell(1760, 0); bell(1318.5, .17); },
+  spray(o = {}) { noise({ t: o.t || 0, dur: .32, vol: .13, type: 'highpass', freq: 3800, q: .5, attack: .03 }); },
+  bark() { bark(); },
+  sneeze() {
+    // 「哈——」：吸氣上揚
+    noise({ dur: .26, vol: .06, freq: 900, freqEnd: 1700, q: 1.5, attack: .15 });
+    tone({ freq: 380, freqEnd: 620, dur: .26, vol: .05, glide: 1, type: 'triangle', attack: .12 });
+    // 「啾！」：短促
+    noise({ t: .3, dur: .14, vol: .22, type: 'highpass', freq: 2600, q: .6, attack: .004 });
+    tone({ freq: 950, freqEnd: 480, t: .3, dur: .14, vol: .09, type: 'triangle', attack: .004 });
+  },
+  lick() {
+    noise({ dur: .08, vol: .1, freq: 1800, freqEnd: 3200, q: 3, attack: .01 });
+    tone({ freq: 700, freqEnd: 1100, t: .01, dur: .06, vol: .04 });
+    noise({ t: .1, dur: .06, vol: .06, freq: 2000, freqEnd: 3400, q: 3, attack: .01 });
+  },
+};
+
+// ---------------- 音樂（音樂盒，lookahead 排程） ----------------
+// 曲譜：每格一個八分音符。音名如 A5、Bb4、F#5；'-' 表示休止／延續。
+const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+function parse(str) {
+  return str.trim().split(/\s+/).map(tok => {
+    if (tok === '-') return null;
+    const m = /^([A-G])([b#]?)(\d)$/.exec(tok);
+    if (!m) return null;
+    return NOTE[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + (Number(m[3]) + 1) * 12;
+  });
+}
+const TRACKS = {
+  // 溫柔：F 大調，F–Dm–Bb–C，兩段
+  home: {
+    bpm: 84, loop: true, vol: .9,
+    mel: parse(`A5 - C6 - A5 G5 F5 -   F5 - A5 - D6 - C6 -   D6 - C6 A5 Bb5 - A5 -   G5 - E5 - G5 - C6 -
+                A5 - C6 - F6 - E6 D6   C6 - A5 - D6 - F5 -   G5 - Bb5 - A5 - G5 -   F5 - - - - - - -`),
+    bass: parse(`F3 - - - C4 - - -   D3 - - - A3 - - -   Bb2 - - - F3 - - -   C3 - - - G3 - - -
+                 F3 - - - C4 - - -   D3 - - - A3 - - -   Bb2 - - - C3 - - -   F3 - C4 - F3 - - -`),
+  },
+  // 輕快：C 大調，C–Am–F–G
+  map: {
+    bpm: 112, loop: true, vol: .8,
+    mel: parse(`E5 G5 C6 G5 E5 - G5 -   A5 C6 E6 C6 A5 - - -   F5 A5 C6 A5 F5 - A5 -   G5 B5 D6 - B5 - G5 -
+                E5 G5 C6 G5 E6 - D6 -   C6 - A5 - E5 - A5 -   F5 - A5 - C6 - D6 -   C6 - - - G5 - - -`),
+    bass: parse(`C3 - G3 - C3 - G3 -   A2 - E3 - A2 - E3 -   F2 - C3 - F2 - C3 -   G2 - D3 - G2 - D3 -
+                 C3 - G3 - C3 - G3 -   A2 - E3 - A2 - E3 -   F2 - C3 - G2 - D3 -   C3 - G3 - C3 - - -`),
+  },
+  // 關卡：G 大調，稀疏、音量小，不搶音效
+  level: {
+    bpm: 100, loop: true, vol: .55,
+    mel: parse(`B5 - - D6 - - G5 -   - - A5 - B5 - - -   C6 - - B5 - - A5 -   - - G5 - A5 - - -
+                B5 - - D6 - - G6 -   - - F#6 - E6 - - -   D6 - - B5 - - A5 -   - - G5 - - - - -`),
+    bass: parse(`G3 - D4 - G3 - D4 -   E3 - B3 - E3 - B3 -   C3 - G3 - C3 - G3 -   D3 - A3 - D3 - A3 -
+                 G3 - D4 - G3 - D4 -   E3 - B3 - E3 - B3 -   C3 - G3 - D3 - A3 -   G3 - D4 - G3 - - -`),
+  },
+  // 勝利：短曲只播一次
+  win: {
+    bpm: 132, loop: false, vol: 1,
+    mel: parse(`C5 E5 G5 C6 - E6 - G6   - - E6 - G6 - - -   C7 - - - - - - -`),
+    bass: parse(`C3 - - - G3 - - -   F3 - - - G3 - - -   C3 - - - - - - -`),
+  },
+};
+
+/** 音樂盒音色：正弦＋泛音、快起慢收 */
+function musicBox(f, t, vol, out) {
+  const d = 1.5;
+  tone({ freq: f, t, dur: d, vol: vol, attack: .003, out });
+  tone({ freq: f * 2, t, dur: d * .6, vol: vol * .28, attack: .003, out });
+  tone({ freq: f * 3, t, dur: d * .3, vol: vol * .08, attack: .002, out });
+  tone({ freq: f * 4.2, t, dur: .12, vol: vol * .05, attack: .001, out });
+}
+function softBass(f, t, vol, out) {
+  tone({ freq: f, t, dur: .8, vol: vol, type: 'triangle', attack: .01, out });
+}
+
+const LOOKAHEAD = .15;   // 往前排多少秒
+const TICK_MS = 30;
+let player = null;       // { name, track, bus, step, nextTime, timer }
+let wantTrack = null;    // 想播的曲子（還沒解鎖、或音樂關掉時記住）
+let activeTimers = 0;    // 測試用：目前活著的排程 timer 數
+
+function schedule(p) {
+  if (!ac || player !== p) return;
+  const now = ac.currentTime;
+  const stepDur = 60 / p.track.bpm / 2;
+  if (p.nextTime < now - .2) p.nextTime = now + .05; // 背景暫停回來，避免一次補一大串
+  while (p.nextTime < now + LOOKAHEAD) {
+    const len = p.track.mel.length;
+    if (p.step >= len) {
+      if (p.track.loop) p.step = 0;
+      else { stopPlayer(p, 1.2); if (wantTrack === p.name) wantTrack = null; return; }
+    }
+    const m = p.track.mel[p.step], b = p.track.bass[p.step];
+    const v = p.track.vol;
+    if (m != null) musicBox(mtof(m), p.nextTime - now, .1 * v, p.bus);
+    if (b != null) softBass(mtof(b), p.nextTime - now, .07 * v, p.bus);
+    p.step++;
+    p.nextTime += stepDur;
+  }
+  p.timer = setTimeout(() => { activeTimers--; p.timer = null; schedule(p); }, TICK_MS);
+  activeTimers++;
+}
+function stopPlayer(p, fade = .6) {
+  if (!p) return;
+  if (p.timer) { clearTimeout(p.timer); p.timer = null; activeTimers--; }
+  try {
+    const now = ac.currentTime;
+    p.bus.gain.cancelScheduledValues(now);
+    p.bus.gain.setValueAtTime(p.bus.gain.value, now);
+    p.bus.gain.linearRampToValueAtTime(0, now + fade);
+    setTimeout(() => { try { p.bus.disconnect(); } catch (e) { /* 已斷開 */ } }, (fade + 2) * 1000);
+  } catch (e) { /* 略過 */ }
+  if (player === p) player = null;
+}
+function startPlayer(name) {
+  const track = TRACKS[name];
+  if (!track || !ac) return;
+  if (player && player.name === name) return;
+  if (player) stopPlayer(player, .6);
+  const bus = ac.createGain();
+  const now = ac.currentTime;
+  bus.gain.setValueAtTime(0, now);
+  bus.gain.linearRampToValueAtTime(1, now + .8);
+  bus.connect(musicBus);
+  const p = { name, track, bus, step: 0, nextTime: now + .1, timer: null };
+  player = p;
+  schedule(p);
+}
+
+// ---------------- 對外 API ----------------
+const audio = {
+  unlock() {
+    if (!ensureContext()) return;
+    try { if (ac.state === 'suspended') ac.resume(); } catch (e) { /* 略過 */ }
+    if (unlocked) return;
+    unlocked = true;
+    try { const b = ac.createBuffer(1, 1, 22050), s = ac.createBufferSource(); s.buffer = b; s.connect(ac.destination); s.start(0); } catch (e) { /* 略過 */ }
+    loadBark();
+    if (wantTrack && musicOn) startPlayer(wantTrack);
+  },
+  sfx(name, opts = {}) {
+    if (!sfxOn || !ac || !unlocked) return;
+    const fn = SFX[name];
+    if (!fn) { console.warn('沒有這個音效', name); return; }
+    try { fn(opts); } catch (e) { console.warn('音效錯誤', name, e); }
+  },
+  setSfx(on) {
+    sfxOn = !!on;
+    if (sfxBus) { const now = ac.currentTime; sfxBus.gain.cancelScheduledValues(now); sfxBus.gain.setValueAtTime(sfxOn ? 1 : 0, now); }
+  },
+  setMusic(on) {
+    musicOn = !!on;
+    if (!ac) return;
+    const now = ac.currentTime;
+    musicBus.gain.cancelScheduledValues(now);
+    musicBus.gain.setValueAtTime(musicOn ? .5 : 0, now);
+    if (!musicOn) { if (player) stopPlayer(player, .05); }
+    else if (unlocked && wantTrack && !player) startPlayer(wantTrack);
+  },
+  playMusic(track) {
+    if (!TRACKS[track]) { console.warn('沒有這首曲子', track); return; }
+    wantTrack = track;
+    if (ac && unlocked && musicOn) startPlayer(track);
+  },
+  stopMusic() {
+    wantTrack = null;
+    if (player) stopPlayer(player, .6);
+  },
+  /** 測試用 */
+  _debug: () => ({ unlocked, state: ac && ac.state, track: player && player.name, wantTrack, activeTimers, sfxOn, musicOn, barkLoaded: !!barkBuf,
+    trackLens: Object.fromEntries(Object.entries(TRACKS).map(([k, t]) => [k, [t.mel.length, t.bass.length]])) }),
+  SFX_NAMES: Object.keys(SFX),
+  TRACK_NAMES: Object.keys(TRACKS),
+};
+
+// 切到背景時暫停，回來再繼續（省電，也避免 iOS 背景卡音）
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!ac || !unlocked) return;
+    try { document.hidden ? ac.suspend() : ac.resume(); } catch (e) { /* 略過 */ }
+  });
+}
+
+export default audio;

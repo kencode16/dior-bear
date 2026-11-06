@@ -1,0 +1,109 @@
+/* B2 角色樣式（前綴 ch-）：丁噹熊＋大不溜元件 mountDuo、角色 SVG 的表情切換與待機動畫 */
+
+/* ---------- 元件外框與尺寸 ---------- */
+.ch-duo{
+  --bw:100px; --dw:70px; --ov:16px; --sayfs:13px;
+  position:relative; display:inline-flex; align-items:flex-end; justify-content:center;
+  -webkit-user-select:none; user-select:none;
+}
+.ch-size-game{--bw:100px;--dw:70px;--ov:16px;--sayfs:13px}
+.ch-size-home{--bw:150px;--dw:104px;--ov:22px;--sayfs:15px}
+.ch-size-preview{--bw:160px;--dw:120px;--ov:-14px;--sayfs:15px}
+.ch-size-small{--bw:64px;--dw:46px;--ov:10px;--sayfs:11px}
+@media (min-width:900px){
+  .ch-size-game{--bw:190px;--dw:120px;--ov:26px;--sayfs:16px}
+  .ch-size-home{--bw:200px;--dw:136px;--ov:28px;--sayfs:17px}
+  .ch-size-preview{--bw:220px;--dw:165px;--ov:-24px;--sayfs:17px}
+}
+.ch-pet{position:relative;z-index:2;margin-right:calc(-1 * var(--ov));display:flex;flex-direction:column;align-items:center}
+.ch-bearcol{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}
+.ch-bear,.ch-dog{display:block;padding:0;margin:0;border:0;background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none}
+.ch-bear{width:var(--bw)}
+.ch-dog{width:var(--dw);transform-origin:50% 100%}
+.ch-static .ch-bear,.ch-static .ch-dog{cursor:default;pointer-events:none}
+.ch-bear svg,.ch-dog svg{width:100%;height:auto;display:block;overflow:visible}
+.ch-bear-hop,.ch-dog-hop{transform-origin:50% 100%}
+.ch-bear-inner{animation:ch-bob 2.6s ease-in-out infinite;transform-origin:50% 100%}
+.ch-dog-inner{animation:ch-breathe 2.2s ease-in-out infinite;transform-origin:50% 100%}
+.ch-name{margin-top:2px;font-size:calc(var(--sayfs) - 1px);color:#fff;border-radius:999px;padding:2px 10px;white-space:nowrap;font-weight:700}
+.ch-name-bear{background:var(--pink,#FF9EB5);box-shadow:0 2px 0 var(--pink-deep,#E8668C)}
+.ch-name-dog{background:#8A6E66;box-shadow:0 2px 0 #5E4A45}
+
+/* ---------- 對話泡泡（丁噹熊頭上偏右；外部可覆寫 .ch-say 的 left/bottom） ---------- */
+.ch-say{position:absolute;left:50%;bottom:90%;z-index:5;width:max-content;max-width:max(8.5em, calc(var(--bw) * 1.7));transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .2s}
+.ch-say.ch-show{opacity:1}
+.ch-say span{display:block;position:relative;background:var(--card,#fff);border:2.5px solid #F6CFD9;border-radius:16px;padding:5px 11px;font-size:var(--sayfs);line-height:1.35;color:var(--cocoa,#7A4E3A);font-weight:700;text-align:center;box-shadow:0 3px 0 rgba(232,102,140,.14);transform-origin:50% 100%}
+.ch-say span::after{content:"";position:absolute;left:50%;margin-left:-6px;bottom:-8px;width:11px;height:11px;background:var(--card,#fff);border-right:2.5px solid #F6CFD9;border-bottom:2.5px solid #F6CFD9;transform:rotate(45deg);border-radius:0 0 4px 0}
+
+/* ---------- 汪汪泡泡 ---------- */
+.ch-woof{position:absolute;left:50%;bottom:calc(100% - 6px);transform:translate(-50%,0);opacity:0;z-index:4;background:#fff;border:2px solid var(--gold-line,#EBCB86);border-radius:14px;padding:3px 9px;font-size:var(--sayfs);font-weight:800;color:var(--cocoa,#7A4E3A);white-space:nowrap;box-shadow:0 3px 0 rgba(214,169,133,.25);pointer-events:none}
+.ch-woof::after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-5px;width:9px;height:9px;background:#fff;border-right:2px solid var(--gold-line,#EBCB86);border-bottom:2px solid var(--gold-line,#EBCB86);transform:rotate(45deg)}
+
+/* ---------- 粒子圖層 ---------- */
+.ch-fxlayer{position:fixed;inset:0;pointer-events:none;z-index:900;overflow:hidden}
+.ch-pt,.ch-mist{position:absolute;left:0;top:0;pointer-events:none;will-change:transform,opacity}
+.ch-pt svg{width:100%;height:100%;display:block;overflow:visible}
+.ch-mist{border-radius:50%}
+
+/* ---------- 表情切換（live 模式：所有表情都在 SVG 裡，用 data-expr 顯示其中一組） ---------- */
+.ch-live .ch-x{display:none}
+.ch-live[data-expr="normal"] .ch-x-normal,
+.ch-live[data-expr="happy"] .ch-x-happy,
+.ch-live[data-expr="squint"] .ch-x-squint,
+.ch-live[data-expr="worried"] .ch-x-worried,
+.ch-live[data-expr="pout"] .ch-x-pout,
+.ch-live[data-expr="surprised"] .ch-x-surprised,
+.ch-live[data-expr="wink"] .ch-x-wink,
+.ch-live[data-expr="smug"] .ch-x-smug,
+.ch-live[data-expr="bark"] .ch-x-bark,
+.ch-live[data-expr="lick"] .ch-x-lick,
+.ch-live[data-expr="sneeze"] .ch-x-sneeze,
+.ch-live[data-expr="sad"] .ch-x-sad{display:inline}
+
+/* ---------- 丁噹熊的小動畫 ---------- */
+.ch-bear-svg .ch-beyes{transform-box:fill-box;transform-origin:center;animation:ch-blink 4.8s infinite}
+.ch-bear-svg .ch-bell{transform-box:fill-box;transform-origin:50% 0%;animation:ch-sway 2.6s ease-in-out infinite}
+.ch-bear-svg .ch-bell.ch-ring{animation:ch-bellswing .9s ease-out}
+.ch-bear-svg .ch-arm-hold{transform-box:fill-box;transform-origin:6% 96%;animation:ch-hold 3.2s ease-in-out infinite}
+.ch-bear-svg .ch-arm-hold.ch-spray{animation:ch-sprayarm .8s ease-out}
+.ch-bear-svg .ch-bulb{transform-box:fill-box;transform-origin:50% 40%}
+.ch-bear-svg .ch-arm-hold.ch-spray .ch-bulb{animation:ch-squeeze .8s ease-out}
+.ch-bear-svg .ch-arm-l{transform-box:fill-box;transform-origin:70% 6%}
+.ch-bear-svg .ch-arm-l.ch-clap{animation:ch-clap .9s ease-in-out}
+.ch-bear-svg .ch-sweat{transform-box:fill-box;transform-origin:50% 0;animation:ch-drip 1.3s ease-in infinite}
+
+/* ---------- 大不溜的小動畫 ---------- */
+.ch-dog-svg .ch-tail{transform-box:fill-box;transform-origin:100% 100%;animation:ch-wag .17s ease-in-out infinite alternate}
+.ch-dog-svg.ch-licking .ch-tail{animation-duration:.11s}
+.ch-live[data-expr="happy"] .ch-tail{animation-duration:.12s}
+.ch-dog-svg .ch-tongue{transform-box:fill-box;transform-origin:50% 0}
+.ch-live[data-expr="lick"] .ch-tongue{animation:ch-lap .32s ease-in-out infinite}
+/* 只在 live 模式設 transform-box：靜態 SVG 的耳朵用 transform 屬性旋轉，套 fill-box 會跑位 */
+.ch-live .ch-dear-l,.ch-live .ch-dear-r{transform-box:fill-box;transition:transform .3s ease}
+.ch-live .ch-dear-l{transform-origin:65% 90%}
+.ch-live .ch-dear-r{transform-origin:30% 87%}
+.ch-live[data-expr="sad"] .ch-dear-l{transform:rotate(-28deg)}
+.ch-live[data-expr="sad"] .ch-dear-r{transform:rotate(28deg)}
+.ch-live[data-expr="bark"] .ch-dear-l{transform:rotate(-6deg)}
+.ch-live[data-expr="bark"] .ch-dear-r{transform:rotate(6deg)}
+.ch-dog-svg .ch-puff{transform-box:fill-box;transform-origin:0 50%}
+.ch-live[data-expr="sneeze"] .ch-puff{animation:ch-puff .6s ease-out both}
+
+/* ---------- keyframes ---------- */
+@keyframes ch-bob{0%,100%{transform:translateY(0) scale(1,1)}50%{transform:translateY(-1.5%) scale(1.01,.99)}}
+@keyframes ch-breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.025,.975)}}
+@keyframes ch-blink{0%,90%,100%{transform:scaleY(1)}92%{transform:scaleY(.1)}94%{transform:scaleY(1)}96%{transform:scaleY(.1)}98%{transform:scaleY(1)}}
+@keyframes ch-sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes ch-bellswing{0%{transform:rotate(0)}15%{transform:rotate(24deg)}35%{transform:rotate(-18deg)}55%{transform:rotate(11deg)}75%{transform:rotate(-5deg)}100%{transform:rotate(0)}}
+@keyframes ch-hold{0%,100%{transform:rotate(0)}50%{transform:rotate(-4deg)}}
+@keyframes ch-sprayarm{0%{transform:rotate(0)}25%{transform:rotate(-15deg)}42%{transform:rotate(-11deg)}58%{transform:rotate(-16deg)}100%{transform:rotate(0)}}
+@keyframes ch-squeeze{0%,100%{transform:scale(1)}28%{transform:scale(.7,.78)}42%{transform:scale(1.08)}56%{transform:scale(.72,.8)}74%{transform:scale(1)}}
+@keyframes ch-clap{0%,100%{transform:rotate(0)}20%{transform:rotate(-38deg)}35%{transform:rotate(-10deg)}50%{transform:rotate(-40deg)}65%{transform:rotate(-12deg)}80%{transform:rotate(-30deg)}}
+@keyframes ch-drip{0%{transform:translateY(-4px) scale(.7);opacity:0}25%{opacity:1;transform:translateY(0) scale(1)}80%{opacity:1;transform:translateY(6px) scale(1)}100%{opacity:0;transform:translateY(10px) scale(.9)}}
+@keyframes ch-wag{from{transform:rotate(-20deg)}to{transform:rotate(20deg)}}
+@keyframes ch-lap{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.12)}}
+@keyframes ch-puff{0%{transform:scale(.2);opacity:0}30%{opacity:1}100%{transform:scale(1.4) translateX(4px);opacity:0}}
+
+@media (prefers-reduced-motion:reduce){
+  .ch-bear-inner,.ch-dog-inner,.ch-dog-svg .ch-tail,.ch-bear-svg .ch-bell,.ch-bear-svg .ch-arm-hold{animation:none}
+}
