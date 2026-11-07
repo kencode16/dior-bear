@@ -7,12 +7,16 @@
 // 外部只需要用寬度縮放（height:auto），不必依賴這些數字。
 //
 // live:true 是給 charactersView 用的內部模式：所有表情都畫進同一張 SVG，靠根節點 data-expr 切換（CSS 在 css/chars.css）。
+//
+// 表情（expr）：
+//   丁噹熊 normal happy squint worried pout surprised wink yawn（打哈欠：閉眼、嘴巴張成小 O、眼角淚光；晚上用）
+//   大不溜 smug happy bark lick sneeze sad sleep（趴著睡：閉眼、鼻涕泡泡、頭上飄 Zzz；整隻狗換成趴姿）
 import { INK, SW, shine, dot, sparkle, star5, heartPath, uid } from './common.js';
 
 export const BEAR_VIEWBOX = '0 -14 236 274';
 export const DOG_VIEWBOX = '0 -16 128 130';
-export const BEAR_EXPRS = ['normal', 'happy', 'squint', 'worried', 'pout', 'surprised', 'wink'];
-export const DOG_EXPRS = ['smug', 'happy', 'bark', 'lick', 'sneeze', 'sad'];
+export const BEAR_EXPRS = ['normal', 'happy', 'squint', 'worried', 'pout', 'surprised', 'wink', 'yawn'];
+export const DOG_EXPRS = ['smug', 'happy', 'bark', 'lick', 'sneeze', 'sad', 'sleep'];
 
 // ---------------- 顏色小工具 ----------------
 function rgb(h) {
@@ -285,6 +289,12 @@ const BEAR_FACES = {
     `<path d="M129 108 Q138 98 147 108" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>` +
     `<path d="${sparkle(158, 92, 6)}" fill="#FFF6C2" stroke="#E3BF72" stroke-width="1.6" ${SW}/>` +
     openSmile(8, 11),
+  // 打哈欠：閉眼（往下彎）、放鬆的眉毛、嘴巴張成小 O、眼角一滴淚光
+  yawn: () => `<path d="M72 107 Q82 115 92 107 M128 107 Q138 115 148 107" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>` +
+    `<path d="M71 93 Q81 89 91 92 M149 93 Q139 89 129 92" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round" opacity=".8"/>` +
+    `<path d="M110 128.5 L110 130" stroke="${BROWN}" stroke-width="3.2" stroke-linecap="round"/>` +
+    `<g class="ch-yawnmouth"><ellipse cx="110" cy="139" rx="7.8" ry="9.6" fill="${BROWN}"/><ellipse cx="110" cy="144" rx="4.8" ry="3.8" fill="#FF8FAA"/></g>` +
+    `<g class="ch-tear"><path d="M152 109 Q147.5 116 149.5 119.5 Q152.5 122.5 155.5 119.5 Q157 116 152 109 Z" fill="#D6F0FF" stroke="#7CC0E6" stroke-width="1.8" ${SW}/>${shine(151, 117, 1, 1.8, 20, .95)}</g>`,
 };
 
 /**
@@ -452,6 +462,16 @@ const DOG_FACES = {
       `<path d="M61 41 Q66 38.5 72 36.5 M99 41 Q94 38.5 88 36.5" fill="none" stroke="${DK}" stroke-width="2.2" stroke-linecap="round" opacity=".75"/>`,
     mouth: () => `<path d="M80 58.5 L80 61.4 M73.5 65 Q80 59.8 86.5 65" fill="none" stroke="#3A2A2D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`,
   },
+  // 趴著睡：閉眼彎線、放鬆的 ω 嘴、鼻涕泡泡；extra 是頭上的 Zzz（畫在頭的外面，不跟著頭轉）
+  sleep: {
+    eyes: () => `<path d="M61.5 48 Q68 54 74.5 48 M85.5 48 Q92 54 98.5 48" fill="none" stroke="${DK}" stroke-width="3.4" stroke-linecap="round"/>`,
+    mouth: () => `<path d="M80 58.5 L80 61.2 M74.5 62 Q77.3 64.6 80 61.6 Q82.7 64.6 85.5 62" fill="none" stroke="#3A2A2D" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` +
+      `<g class="ch-nosebub"><circle cx="95" cy="61.5" r="6.8" fill="#EAF7FF" fill-opacity=".72" stroke="#8DC8EA" stroke-width="1.7"/><ellipse cx="92.6" cy="59" rx="2.2" ry="1.4" fill="#fff" transform="rotate(-30 92.6 59)"/></g>`,
+    extra: () => `<g class="ch-zzz" fill="none" stroke="#8C7DD0" stroke-linecap="round" stroke-linejoin="round">` +
+      `<path class="ch-z1" d="M97 9 H108 L97 20 H108" stroke-width="3.4"/>` +
+      `<path class="ch-z2" d="M109 -4 H117 L109 4 H117" stroke-width="2.9"/>` +
+      `<path class="ch-z3" d="M118.5 -15 H124.5 L118.5 -9 H124.5" stroke-width="2.4"/></g>`,
+  },
 };
 
 /**
@@ -464,12 +484,17 @@ export function dogSVG({ expr = 'smug', outfit = {}, live = false } = {}) {
   const B = `url(#${gid})`;
   const collar = COLLARS[outfit.collar] || COLLARS.col_pink;
   const hw = DOG_HEADWEAR[outfit.dogHead] ? DOG_HEADWEAR[outfit.dogHead](gold) : '';
-  const sadL = !live && expr === 'sad' ? ' transform="rotate(-28 64 28)"' : '';
-  const sadR = !live && expr === 'sad' ? ' transform="rotate(28 96 28)"' : '';
+  const sleeping = !live && expr === 'sleep';
+  const earRot = !live && expr === 'sad' ? 28 : sleeping ? 14 : 0;
+  const sadL = earRot ? ` transform="rotate(${-earRot} 64 28)"` : '';
+  const sadR = earRot ? ` transform="rotate(${earRot} 96 28)"` : '';
   const eyes = live ? DOG_EXPRS.map(e => `<g class="ch-x ch-x-${e}">${DOG_FACES[e].eyes()}</g>`).join('') : DOG_FACES[expr].eyes();
   const mouth = live ? DOG_EXPRS.map(e => `<g class="ch-x ch-x-${e}">${DOG_FACES[e].mouth()}</g>`).join('') : DOG_FACES[expr].mouth();
-  const inner =
-    `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#76635F"/><stop offset="1" stop-color="#554541"/></linearGradient>${goldGrad(gold)}</defs>` +
+  const extra = live
+    ? DOG_EXPRS.filter(e => DOG_FACES[e].extra).map(e => `<g class="ch-x ch-x-${e}">${DOG_FACES[e].extra()}</g>`).join('')
+    : (DOG_FACES[expr].extra ? DOG_FACES[expr].extra() : '');
+  // 站姿身體（尾巴、腳、身體、胸口、前腳）
+  const stand =
     `<ellipse cx="60" cy="107" rx="46" ry="4.5" fill="#8A6A5E" opacity=".22"/>` +
     `<g class="ch-tail"><path d="M25 60 L16 49" stroke="${DO}" stroke-width="13" stroke-linecap="round"/><path d="M25 60 L16 49" stroke="#5A4A4F" stroke-width="7.5" stroke-linecap="round"/></g>` +
     // 後腳
@@ -490,16 +515,34 @@ export function dogSVG({ expr = 'smug', outfit = {}, live = false } = {}) {
     `<path d="M63.3 90.5 L76.7 90.5 L76.7 97.5 Q76.7 102.7 70 102.7 Q63.3 102.7 63.3 97.5 Z" fill="${DT}"/>` +
     `<rect x="83" y="80" width="18" height="25" rx="8.5" fill="${B}" stroke="${DO}" stroke-width="4.2"/>` +
     `<path d="M85.3 90.5 L98.7 90.5 L98.7 97.5 Q98.7 102.7 92 102.7 Q85.3 102.7 85.3 97.5 Z" fill="${DT}"/>` +
-    `<path d="M66.5 99 L66.5 103 M70 99.5 L70 103.5 M73.5 99 L73.5 103 M88.5 99 L88.5 103 M92 99.5 L92 103.5 M95.5 99 L95.5 103" stroke="${DTO}" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>` +
-    // 項圈帶子
+    `<path d="M66.5 99 L66.5 103 M70 99.5 L70 103.5 M73.5 99 L73.5 103 M88.5 99 L88.5 103 M92 99.5 L92 103.5 M95.5 99 L95.5 103" stroke="${DTO}" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`;
+  // 趴姿身體（睡覺用）：身體放低、後腳收在身體下、兩隻前腳往前伸，下巴靠在前腳上
+  const lie =
+    `<ellipse cx="62" cy="107.5" rx="54" ry="4.5" fill="#8A6A5E" opacity=".22"/>` +
+    `<g class="ch-tail ch-tail-lie"><path d="M19 92 L7 87" stroke="${DO}" stroke-width="12" stroke-linecap="round"/><path d="M19 92 L7 87" stroke="#5A4A4F" stroke-width="6.8" stroke-linecap="round"/></g>` +
+    `<path d="M16 96 Q13 79 28 75 Q38 72 48 76 Q70 71 90 79 Q99 85 98 96 Q97 106 82 106 L28 106 Q16 106 16 96 Z" fill="${B}" stroke="${DO}" stroke-width="5" stroke-linejoin="round"/>` +
+    `<path d="M24 82 Q34 76 46 79" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".24"/>` +
+    `<path d="M50 80 Q66 76 80 82" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".16"/>` +
+    `<path d="M30 84 Q38 92 36 104" fill="none" stroke="#7D6A70" stroke-width="2.4" stroke-linecap="round" opacity=".6"/>` +
+    // 收起來的後腳
+    `<ellipse cx="44" cy="102" rx="12" ry="5.6" fill="${DLEG}" stroke="${DO}" stroke-width="3.8"/>` +
+    `<ellipse cx="50.5" cy="102.2" rx="5.4" ry="3.6" fill="${DT}"/>` +
+    // 胸口一點點棕色
+    `<path d="M76 84 Q88 86 96 96 L76 98 Z" fill="${DT}" opacity=".95"/>` +
+    // 往前伸的兩隻前腳（後面那隻顏色深一點）
+    `<rect x="70" y="90" width="38" height="11" rx="5.5" fill="${DLEG}" stroke="${DO}" stroke-width="3.8"/>` +
+    `<path d="M98 92.3 L104 92.3 Q106.3 92.3 106.3 95.5 Q106.3 98.7 104 98.7 L98 98.7 Z" fill="${DT}"/>` +
+    `<rect x="66" y="95" width="46" height="11.5" rx="5.75" fill="${B}" stroke="${DO}" stroke-width="4"/>` +
+    `<path d="M101 97.3 L107.5 97.3 Q110.2 97.3 110.2 100.7 Q110.2 104.2 107.5 104.2 L101 104.2 Z" fill="${DT}"/>` +
+    `<path d="M104 98.5 L104 103 M107 98.5 L107 103" stroke="${DTO}" stroke-width="1.4" stroke-linecap="round" opacity=".6"/>`;
+  // 頭（含項圈、耳朵、臉、配件）：睡覺時整組往下移、微微歪頭，下巴靠在前腳上
+  const head =
     collar.band(gold) +
-    // 耳朵（立耳，右耳尖微折）
     `<g class="ch-dear-l"${sadL}><path d="M57 32 C51 18 49 3 52 -7 C61 -2 70 10 72 22 Z" fill="${B}" stroke="${DO}" stroke-width="4.5" stroke-linejoin="round"/>` +
     `<path d="M59 26 C56 17 55.5 8 56.5 1 C62 5 66.5 12 67.5 20 Z" fill="#D99AA6" opacity=".9"/></g>` +
     `<g class="ch-dear-r"${sadR}><path d="M103 32 C108 21 109.5 11 107.5 2 C99 5 90 12 88 22 Z" fill="${B}" stroke="${DO}" stroke-width="4.5" stroke-linejoin="round"/>` +
     `<path d="M101 26 C104 19 105 12 104.5 7 C99 9.5 94 14 92.5 20 Z" fill="#D99AA6" opacity=".9"/>` +
     `<path d="M107.5 2 C111.5 3 115 7.5 114.5 12.5 C111 11.5 107.5 9 105 5.5 Z" fill="#5E4E54" stroke="${DO}" stroke-width="3.6" stroke-linejoin="round"/></g>` +
-    // 頭
     `<ellipse cx="80" cy="44" rx="30.5" ry="26.5" fill="${B}" stroke="${DO}" stroke-width="5"/>` +
     shine(68, 27, 9, 3.2, -14, .22) +
     `<ellipse cx="66" cy="36" rx="4.4" ry="3.1" fill="${DT}" transform="rotate(-18 66 36)"/>` +
@@ -513,8 +556,16 @@ export function dogSVG({ expr = 'smug', outfit = {}, live = false } = {}) {
     mouth +
     collar.front(gold) +
     hw;
+  const HEAD_LIE = 'translate(2 24) rotate(-6 80 44)';
+  const inner =
+    `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#76635F"/><stop offset="1" stop-color="#554541"/></linearGradient>${goldGrad(gold)}</defs>` +
+    (live
+      ? `<g class="ch-pose-stand">${stand}</g><g class="ch-pose-lie">${lie}</g><g class="ch-dhead">${head}</g>`
+      : sleeping ? `${lie}<g transform="${HEAD_LIE}">${head}</g>` : `${stand}${head}`) +
+    extra;
   return wrap(inner, DOG_VIEWBOX, live ? 'ch-live ch-dog-svg' : 'ch-dog-svg', live ? `data-expr="${expr}"` : '');
 }
+
 
 // =====================================================================
 //                         商店小圖示（100×100）

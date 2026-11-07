@@ -37,7 +37,8 @@
 
 /* ---------- 汪汪泡泡 ---------- */
 .ch-woof{position:absolute;left:50%;bottom:calc(100% - 6px);transform:translate(-50%,0);opacity:0;z-index:4;background:#fff;border:2px solid var(--gold-line,#EBCB86);border-radius:14px;padding:3px 9px;font-size:var(--sayfs);font-weight:800;color:var(--cocoa,#7A4E3A);white-space:nowrap;box-shadow:0 3px 0 rgba(214,169,133,.25);pointer-events:none}
-.ch-woof::after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-5px;width:9px;height:9px;background:#fff;border-right:2px solid var(--gold-line,#EBCB86);border-bottom:2px solid var(--gold-line,#EBCB86);transform:rotate(45deg)}
+.ch-woof.ch-date{white-space:pre;width:max-content;max-width:calc(100vw - 20px);text-align:center;line-height:1.35;padding:4px 11px;font-size:calc(var(--sayfs) - 1px);font-weight:800}
+.ch-woof::after{content:"";position:absolute;left:var(--woof-ax,50%);bottom:-7px;margin-left:-5px;width:9px;height:9px;background:#fff;border-right:2px solid var(--gold-line,#EBCB86);border-bottom:2px solid var(--gold-line,#EBCB86);transform:rotate(45deg)}
 
 /* ---------- 粒子圖層 ---------- */
 .ch-fxlayer{position:fixed;inset:0;pointer-events:none;z-index:900;overflow:hidden}
@@ -58,7 +59,9 @@
 .ch-live[data-expr="bark"] .ch-x-bark,
 .ch-live[data-expr="lick"] .ch-x-lick,
 .ch-live[data-expr="sneeze"] .ch-x-sneeze,
-.ch-live[data-expr="sad"] .ch-x-sad{display:inline}
+.ch-live[data-expr="sad"] .ch-x-sad,
+.ch-live[data-expr="yawn"] .ch-x-yawn,
+.ch-live[data-expr="sleep"] .ch-x-sleep{display:inline}
 
 /* ---------- 丁噹熊的小動畫 ---------- */
 .ch-bear-svg .ch-beyes{transform-box:fill-box;transform-origin:center;animation:ch-blink 4.8s infinite}
@@ -107,3 +110,30 @@
 @media (prefers-reduced-motion:reduce){
   .ch-bear-inner,.ch-dog-inner,.ch-dog-svg .ch-tail,.ch-bear-svg .ch-bell,.ch-bear-svg .ch-arm-hold{animation:none}
 }
+
+/* ===== 時段（晚上想睡；js/timeOfDay.js） ===== */
+/* 丁噹熊打哈欠：嘴巴慢慢張大再合起來、淚光閃一下 */
+.ch-bear-svg .ch-yawnmouth{transform-box:fill-box;transform-origin:50% 20%}
+.ch-live[data-expr="yawn"] .ch-yawnmouth{animation:ch-yawn 2s ease-in-out both}
+.ch-bear-svg .ch-tear{transform-box:fill-box;transform-origin:50% 0}
+.ch-live[data-expr="yawn"] .ch-tear{animation:ch-tear 2s ease-out both}
+/* 大不溜趴著睡：live 模式整隻換成趴姿，頭往下移、微微歪頭 */
+.ch-live .ch-pose-lie{display:none}
+.ch-live[data-expr="sleep"] .ch-pose-lie{display:inline}
+.ch-live[data-expr="sleep"] .ch-pose-stand{display:none}
+.ch-live .ch-dhead{transform-origin:80px 44px}
+.ch-live[data-expr="sleep"] .ch-dhead{transform:translate(2px,24px) rotate(-6deg)}
+.ch-live[data-expr="sleep"] .ch-dear-l{transform:rotate(-14deg)}
+.ch-live[data-expr="sleep"] .ch-dear-r{transform:rotate(14deg)}
+.ch-dog-svg .ch-tail-lie{animation:ch-wagslow 1.8s ease-in-out infinite alternate}
+.ch-dog-svg .ch-nosebub{transform-box:fill-box;transform-origin:10% 25%;animation:ch-bubble 2.8s ease-in-out infinite}
+.ch-dog-svg .ch-zzz path{transform-box:fill-box;transform-origin:center;animation:ch-zfloat 3s ease-in-out infinite;opacity:0}
+.ch-dog-svg .ch-zzz .ch-z2{animation-delay:.9s}
+.ch-dog-svg .ch-zzz .ch-z3{animation-delay:1.8s}
+.ch-sleeping .ch-dog-inner{animation-duration:3.8s}
+@keyframes ch-yawn{0%{transform:scale(.45,.25)}35%{transform:scale(1.05,1.12)}70%{transform:scale(1,1)}100%{transform:scale(.5,.3)}}
+@keyframes ch-tear{0%,40%{opacity:0;transform:scale(.3)}60%{opacity:1;transform:scale(1)}100%{opacity:.9;transform:translateY(3px) scale(.95)}}
+@keyframes ch-wagslow{from{transform:rotate(-6deg)}to{transform:rotate(6deg)}}
+@keyframes ch-bubble{0%,100%{transform:scale(.35)}55%{transform:scale(1.15)}75%{transform:scale(1)}}
+@keyframes ch-zfloat{0%{opacity:0;transform:translate(-2px,4px) scale(.6)}20%{opacity:1;transform:translate(0,0) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(4px,-6px) scale(1.1)}}
+@media (prefers-reduced-motion:reduce){.ch-dog-svg .ch-zzz path{opacity:1}}

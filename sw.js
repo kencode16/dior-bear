@@ -2,14 +2,14 @@
 // 筆電沒開伺服器時，iPhone 主畫面上的遊戲仍可用快取離線玩。
 // ⚠ 新增遊戲檔案時，請把路徑加進 PRECACHE（沒加的檔案第一次載入後也會被執行期快取，但離線首次啟動可能缺檔）。
 // ⚠ 改了快取策略或想強制清快取時，把 VERSION 加 1。
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = `dior-bear-${VERSION}`;
 const PRECACHE = [
   './', 'index.html', 'manifest.webmanifest',
   'css/base.css', 'css/chars.css', 'css/game.css', 'css/ui.css',
-  'js/main.js', 'js/config.js', 'js/save.js', 'js/audio.js',
+  'js/main.js', 'js/config.js', 'js/save.js', 'js/audio.js', 'js/timeOfDay.js',
   'js/data/items.js', 'js/data/levels.js', 'js/data/story.js',
-  'js/art/common.js', 'js/art/tiles.js', 'js/art/chars.js', 'js/art/collections.js',
+  'js/art/common.js', 'js/art/sky.js', 'js/art/tiles.js', 'js/art/chars.js', 'js/art/collections.js',
   'js/engine/engine.js',
   'js/game/gameScreen.js', 'js/game/boardView.js', 'js/game/fx.js', 'js/game/sprites.js',
   'js/ui/charactersView.js', 'js/ui/dialog.js', 'js/ui/home.js', 'js/ui/map.js', 'js/ui/wardrobe.js',

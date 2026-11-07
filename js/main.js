@@ -6,6 +6,7 @@ import { LEVELS } from './data/levels.js';
 import { save } from './save.js';
 import audio from './audio.js';
 import dialog from './ui/dialog.js';
+import tod from './timeOfDay.js';
 
 import home from './ui/home.js';
 import map from './ui/map.js';
@@ -23,7 +24,7 @@ let current = null;
 let toastTimer = 0;
 
 export const app = {
-  config, items, levels: LEVELS, save, audio, dialog,
+  config, items, levels: LEVELS, save, audio, dialog, tod,
   screen: null,
   /** 切換畫面：name 為 SCREENS 的鍵，params 會原封不動傳給 mount */
   async go(name, params = {}) {
@@ -60,6 +61,10 @@ window.addEventListener('touchend', unlock, { capture: true });
 // 設定同步到音效模組
 audio.setSfx(save.settings().sfx);
 audio.setMusic(save.settings().music);
+
+// 時段：<html data-tod>、整頁底下的天空層（各畫面自己的背景上另外疊天空層，見 timeOfDay.js）
+tod.start();
+tod.mountSky(document.body, { fixed: true });
 
 // 開發用：網址加 ?screen=level&level=3 可以直接開某個畫面
 const q = new URLSearchParams(location.search);

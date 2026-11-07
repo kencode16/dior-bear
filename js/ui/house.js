@@ -1,5 +1,7 @@
 // 樹洞小屋場景（首頁與布置共用）：背景＋家具＋梳妝台香水＋丁噹熊與大不溜＋窗外來玩的朋友。
-import { houseBgSVG, furnitureSVG, perfumeBottleSVG, friendSVG } from '../art/collections.js';
+// 時段（js/timeOfDay.js）：窗外天空、窗光、室內光線跟著變；晚上擺了燈就會亮；晚上朋友不來探頭（大家都睡了）。
+import { houseBgSVG, houseLightSVG, furnitureSVG, perfumeBottleSVG, friendSVG } from '../art/collections.js';
+import tod from '../timeOfDay.js';
 import { mountDuo } from './charactersView.js';
 import { svgImg, safe, perfumeColor, esc } from './uikit.js';
 
@@ -28,13 +30,65 @@ export function mountHouse(container, app, opts = {}) {
   const el = document.createElement('div');
   el.className = 'u-house';
   el.style.aspectRatio = `${V.w} / ${V.h}`;
-  el.innerHTML = `<div class="u-house-bg">${safe(() => svgImg(houseBgSVG(), '', '樹洞小屋'))}</div>` +
+  el.innerHTML = `<div class="u-house-bg"></div>` +
     `<div class="u-house-window" style="${rectStyle(WINDOW, V)}"></div>` +
     `<div class="u-house-furn"></div>` +
     `<div class="u-house-shelf" style="${rectStyle(VANITY_SHELF, V)}"></div>` +
     (o.onVanityTap ? `<button class="u-house-vanity" style="${rectStyle(VANITY, V)}" aria-label="梳妝台：打開香水櫃"></button>` : '') +
+    `<div class="u-house-light" aria-hidden="true"></div>` +
     `<div class="u-house-duo" style="${rectStyle(DUO_SPOT, V)}"></div>`;
   container.appendChild(el);
+  const bgLayer = el.querySelector('.u-house-bg');
+  const lightLayer = el.querySelector('.u-house-light');
+
+  // ---- 時段：背景與光線淡入淡出 ----
+  let period = null, lightKey = '';
+  const FADE = 1600;
+  // 注意：混合模式（multiply／screen）的節點和它的祖先不能形成獨立疊放圖層（opacity<1、z-index、filter…），
+  // 否則混合只在空白背景上算、會變成不透明色塊。所以淡入淡出直接做在混合節點本身。
+  function fadeIn(layer, nodes, instant) {
+    const old = [...layer.children];
+    old.forEach(n => n.classList.remove('on'));
+    nodes.forEach(node => {
+      node.classList.add('u-fade');
+      if (instant) node.classList.add('on');
+      layer.appendChild(node);
+    });
+    if (!instant) { layer.getBoundingClientRect(); nodes.forEach(n => n.classList.add('on')); }
+    timers.push(setTimeout(() => old.forEach(n => n.remove()), instant ? 0 : FADE + 100));
+  }
+  function setBg(p, instant) {
+    const d = document.createElement('div');
+    d.className = 'u-house-bgimg';
+    d.innerHTML = safe(() => svgImg(houseBgSVG({ tod: p }), '', '樹洞小屋'));
+    fadeIn(bgLayer, [d], instant);
+  }
+  function setLight(p, lamp, instant) {
+    const key = `${p}|${p === 'night' ? lamp || '' : ''}`;
+    if (key === lightKey) return;
+    lightKey = key;
+    const L = safe(() => houseLightSVG(p, { lamp }), { shade: '', glow: '' });
+    const nodes = [];
+    for (const [k, svgStr] of [['shade', L.shade], ['glow', L.glow]]) {
+      if (!svgStr) continue;
+      const d = document.createElement('div');
+      d.className = `u-light-${k}`;
+      d.dataset.tod = p;
+      d.innerHTML = svgStr;
+      nodes.push(d);
+    }
+    fadeIn(lightLayer, nodes, instant);
+  }
+  const currentLamp = () => {
+    const placed = app.save.house();
+    if (o.preview) placed[o.preview.slot] = o.preview.id || undefined;
+    return placed.lamp || null;
+  };
+  function applyTod(p, instant) {
+    if (p !== period) { period = p; setBg(p, instant); }
+    el.dataset.tod = p;
+    setLight(p, currentLamp(), instant);
+  }
   const furnLayer = el.querySelector('.u-house-furn');
   const shelf = el.querySelector('.u-house-shelf');
 
@@ -48,6 +102,7 @@ export function mountHouse(container, app, opts = {}) {
   }
 
   function drawFurniture() {
+    if (period) setLight(period, currentLamp(), false);
     const placed = app.save.house();
     if (o.preview) placed[o.preview.slot] = o.preview.id || undefined;
     furnLayer.innerHTML = HOUSE_SLOTS.map(s => {
@@ -70,6 +125,7 @@ export function mountHouse(container, app, opts = {}) {
 
   // 窗外朋友：已認識的朋友偶爾從窗戶探頭打招呼
   function friendVisit() {
+    if (tod.current() === 'night') return;   // 晚上大家都睡了
     const met = FRIENDS.filter(f => app.save.isCleared(f.chapter * 10));
     if (!met.length || !el.isConnected) return;
     const f = met[Math.floor(Math.random() * met.length)];
@@ -92,13 +148,18 @@ export function mountHouse(container, app, opts = {}) {
     timers.push(setTimeout(() => { friendVisit(); scheduleFriend(false); }, first ? 2600 : 12000 + Math.random() * 9000));
   }
 
+  applyTod(tod.current(), true);
   drawFurniture();
   scheduleFriend(true);
+  const offTod = tod.onChange(p => {
+    applyTod(p, false);
+    if (p === 'night') el.querySelectorAll('.u-friend-peek,.u-friend-hi').forEach(n => n.classList.add('out'));
+  });
 
   return {
     el,
     get duo() { return duo; },
     update(next = {}) { o = { ...o, ...next }; drawFurniture(); },
-    destroy() { timers.forEach(clearTimeout); safe(() => duo?.destroy()); duo = null; el.remove(); },
+    destroy() { offTod(); timers.forEach(clearTimeout); safe(() => duo?.destroy()); duo = null; el.remove(); },
   };
 }

@@ -2,7 +2,7 @@
 //
 // const duo = mountDuo(container, { size: 'game' | 'home' | 'preview' | 'small', app, interactive = true, labels = false });
 //   duo.el                     元件根節點（.ch-duo）
-//   duo.react(kind)            'idle'|'combo'|'special'|'lowMoves'|'win'|'lose'|'shuffle'|'licked'
+//   duo.react(kind)            'idle'|'combo'|'special'|'lowMoves'|'win'|'lose'|'shuffle'|'licked'（額外：'yawn' 打哈欠）
 //   duo.say(text, ms = 2200)   丁噹熊的對話泡泡（.ch-say，可用 CSS 改位置）
 //   duo.setOutfit(equipped)    傳 save.equipped()：{ head, ribbon, clothes, hand, dogHead, collar }
 //   duo.setPerfume(color)      香水瓶與香霧顏色
@@ -15,11 +15,22 @@
 //   preview 手機 熊 160 / 狗 120（並排不重疊）；寬螢幕 熊 220 / 狗 165
 //   small   熊 64 / 狗 46
 // 粒子（香霧、愛心、彩紙）畫在 document.body 上的固定圖層 .ch-fxlayer，不會被容器裁掉。
+//
+// 時段（js/timeOfDay.js）：晚上（night）丁噹熊每 15–30 秒打一次哈欠；大不溜大部分時間趴著睡（data-expr="sleep"），
+//   每 15–25 秒醒來伸懶腰、舔丁噹熊一下再睡回去；晚上點牠會先嚇醒（？！）再叫，約 8 秒後睡回去；
+//   關卡反應（combo、special、win、lose、licked）會把牠吵醒一起演，演完再睡。時段中途改變會即時切換。
+//   size 'preview'（換裝預覽）不睡，才看得清楚造型。
+// 點大不溜約 1/3 機率報今天日期（「汪！今天是 11 月 7 日 星期六」，兩行、約 3 秒，泡泡會自動避開畫面邊緣）。
 import { bearSVG, dogSVG, mix } from '../art/chars.js';
 import { heartPath, sparkle } from '../art/common.js';
+import tod from '../timeOfDay.js';
 
 const TAP_LINES = ['噴一下香香～', '叮噹～我是丁噹熊！', '香香的，心情也變好了～', '今天也要漂漂亮亮♡', '大不溜，不要偷噴我的香水！'];
 const LICK_LINES = ['嘻嘻，好癢～', '大不溜，不要一直舔我啦～', '你也想噴香水嗎？'];
+const YAWN_LINES = ['呼啊～好睏喔～', '再玩一下下就去睡～', '星星出來了耶～'];
+const WEEK = '日一二三四五六';
+/** 「汪！今天是\n11 月 7 日 星期六」 */
+export function dateLine(d = new Date()) { return `汪！今天是\n${d.getMonth() + 1} 月 ${d.getDate()} 日 星期${WEEK[d.getDay()]}`; }
 
 let fxLayer = null;
 function layer() {
@@ -77,7 +88,11 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
   const woof = el.querySelector('.ch-woof');
 
   let bearOutfit = {}, dogOutfit = {}, perfumeColor = '#FF9EB5';
-  let bearExpr = 'normal', dogExpr = 'smug';
+  const sleepy = size !== 'preview';
+  let night = sleepy && tod.current() === 'night';
+  let awakeUntil = 0, sleepTimer = 0;
+  let bearExpr = 'normal', dogExpr = night ? 'sleep' : 'smug';
+  if (night) el.classList.add('ch-sleeping');
   let bearSvg = null, dogSvg = null;
   let bearTimer = 0, dogTimer = 0, sayTimer = 0;
   let dogBusy = false;
@@ -99,10 +114,40 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
     clearTimeout(bearTimer); timers.delete(bearTimer);
     if (ms) bearTimer = later(() => setBear('normal'), ms);
   }
+  /** 大不溜沒事時的表情：晚上（而且沒被吵醒）是睡覺，其他時候是痞痞拽拽 */
+  const restDog = () => (night && Date.now() >= awakeUntil ? 'sleep' : 'smug');
   function setDog(e, ms) {
+    const wasSleep = dogExpr === 'sleep', isSleep = e === 'sleep';
     dogExpr = e; if (dogSvg) dogSvg.dataset.expr = e;
+    el.classList.toggle('ch-sleeping', isSleep);
+    if (wasSleep !== isSleep) poseBump(isSleep);
     clearTimeout(dogTimer); timers.delete(dogTimer);
-    if (ms) dogTimer = later(() => setDog('smug'), ms);
+    if (ms) dogTimer = later(() => setDog(restDog()), ms);
+  }
+  /** 趴下／站起來時身體壓一下，遮住換姿勢的瞬間 */
+  function poseBump(lying) {
+    anim(dogHop, lying
+      ? [{ transform: 'scale(1,1)' }, { transform: 'scale(1.08,.88)', offset: .45 }, { transform: 'scale(1,1)' }]
+      : [{ transform: 'scale(1.06,.9)' }, { transform: 'scale(.96,1.06)', offset: .55 }, { transform: 'scale(1,1)' }], { duration: 380, easing: 'ease-out' });
+  }
+  /** 晚上把大不溜叫醒 ms 毫秒，之後自己睡回去 */
+  function wake(ms = 8000) {
+    if (!night) return;
+    awakeUntil = Math.max(awakeUntil, Date.now() + ms);
+    if (dogExpr === 'sleep') setDog('smug');
+    scheduleSleep();
+  }
+  function scheduleSleep() {
+    clearTimeout(sleepTimer); timers.delete(sleepTimer);
+    if (!night) return;
+    sleepTimer = later(maybeSleep, Math.max(200, awakeUntil - Date.now() + 60));
+  }
+  function maybeSleep() {
+    if (!night || dead) return;
+    if (Date.now() < awakeUntil) { scheduleSleep(); return; }
+    if (dogExpr === 'sleep') return;
+    if (dogBusy || dogExpr !== 'smug') { clearTimeout(sleepTimer); timers.delete(sleepTimer); sleepTimer = later(maybeSleep, 900); return; }
+    setDog('sleep');
   }
   function restartClass(node, cls, ms) {
     if (!node) return;
@@ -192,6 +237,15 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
     if (size !== 'small' && Math.random() < .5) say(LICK_LINES[Math.random() * LICK_LINES.length | 0], 1800);
   }
 
+  function bearYawn() {
+    setBear('yawn', 2000);
+    anim(bearHop, [{ transform: 'translateY(0) scale(1,1)' }, { transform: 'translateY(-1.5%) scale(.98,1.04)', offset: .4 }, { transform: 'translateY(-1%) scale(.99,1.03)', offset: .7 }, { transform: 'translateY(0) scale(1,1)' }], { duration: 2000, easing: 'ease-in-out' });
+    if (size !== 'small' && Math.random() < .35) {
+      const lines = dogExpr === 'sleep' ? [...YAWN_LINES, '大不溜都睡著了耶～'] : YAWN_LINES;
+      later(() => say(lines[Math.random() * lines.length | 0], 2000), 1200);
+    }
+  }
+
   // ---------------- 狗的動作 ----------------
   function dogHopAnim(h = .16) {
     anim(dogHop, [{ transform: 'translateY(0) scale(1,1)' }, { transform: 'translateY(0) scale(1.1,.88)', offset: .18 }, { transform: `translateY(-${h * 100}%) scale(.94,1.07)`, offset: .5 }, { transform: 'translateY(0) scale(1.07,.93)', offset: .8 }, { transform: 'translateY(0) scale(1,1)' }], { duration: 520, easing: 'ease-out' });
@@ -211,16 +265,55 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
     later(() => dogSvg?.classList.remove('ch-licking'), 1250);
     if (a) a.finished.catch(() => {}).finally(() => { dogBusy = false; }); else dogBusy = false;
   }
+  /** 晚上：醒來伸個懶腰，再去舔丁噹熊，之後睡回去 */
+  function nightLick() {
+    if (dogBusy || dead) return;
+    wake(4200);
+    anim(dogHop, [{ transform: 'scale(1,1)' }, { transform: 'translateX(4%) scale(1.16,.86)', offset: .45 }, { transform: 'scale(.96,1.05)', offset: .75 }, { transform: 'scale(1,1)' }], { duration: 900, easing: 'ease-in-out' });
+    later(dogLick, 950);
+  }
   function dogSneeze() {
     setDog('sneeze', 750);
     sfx('sneeze');
     anim(dogHop, [{ transform: 'translate(0,0) rotate(0)' }, { transform: 'translate(-3%,2%) rotate(-6deg) scale(1.05,.95)', offset: .3 }, { transform: 'translate(4%,-3%) rotate(5deg) scale(.96,1.05)', offset: .55 }, { transform: 'translate(0,0) rotate(0)' }], { duration: 600, easing: 'ease-out' });
   }
-  function bark() {
+  /** 狗頭上的泡泡；會自動左右（上下）挪，避免超出畫面 */
+  function showWoof(text, dur = 1150, isDate = false) {
+    woof.textContent = text;
+    woof.classList.toggle('ch-date', !!isDate);
+    woof.getAnimations?.().forEach(a => { try { a.cancel(); } catch (e) { /* 已結束 */ } });
+    let dx = 0, dy = 0;
+    const w = woof.offsetWidth, h = woof.offsetHeight;
+    const pr = pet.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth || window.innerWidth, m = 12;
+    if (w && pr.width) {
+      const left = pr.left + pr.width / 2 - w / 2;
+      if (left < m) dx = m - left; else if (left + w > vw - m) dx = vw - m - (left + w);
+      const top = woof.getBoundingClientRect().top;
+      if (top < m) dy = m - top;
+    }
+    woof.style.setProperty('--woof-ax', `${Math.max(14, Math.min(w - 14, w / 2 - dx))}px`);
+    const tx = y => `translate(calc(-50% + ${dx}px),${y + dy}px)`;
+    const hold = isDate ? .9 : .75;
+    anim(woof, [{ opacity: 0, transform: `${tx(8)} scale(.5)` }, { opacity: 1, transform: `${tx(-4)} scale(1.12)`, offset: isDate ? .07 : .18 }, { opacity: 1, transform: `${tx(-6)} scale(1)`, offset: hold }, { opacity: 0, transform: `${tx(-16)} scale(1)` }], { duration: dur, easing: 'ease-out' });
+  }
+  /** 汪汪叫；withDate 為 true 時泡泡改成報今天日期 */
+  function bark(withDate = false) {
     sfx('bark');
     setDog('bark', 900);
-    anim(woof, [{ opacity: 0, transform: 'translate(-50%,8px) scale(.5)' }, { opacity: 1, transform: 'translate(-50%,-4px) scale(1.12)', offset: .18 }, { opacity: 1, transform: 'translate(-50%,-6px) scale(1)', offset: .75 }, { opacity: 0, transform: 'translate(-50%,-16px) scale(1)' }], { duration: 1150, easing: 'ease-out' });
+    if (withDate) {
+      // 報日期時先收起丁噹熊的對話泡泡，兩個泡泡才不會疊在一起（主代理 v1.1 加）
+      clearTimeout(sayTimer); timers.delete(sayTimer);
+      sayEl.classList.remove('ch-show');
+      showWoof(dateLine(), 3000, true);
+    } else showWoof('汪汪！');
     if (!dogBusy) anim(dogHop, [{ transform: 'scale(1,1)' }, { transform: 'scale(1.16,.84)', offset: .2 }, { transform: 'scale(.92,1.1)', offset: .45 }, { transform: 'scale(1.05,.96)', offset: .7 }, { transform: 'scale(1,1)' }], { duration: 480, easing: 'ease-out' });
+  }
+  /** 晚上睡著時被點：嚇一跳醒來 */
+  function startle() {
+    setDog('smug');
+    showWoof('？！', 420);
+    anim(dogHop, [{ transform: 'translateY(0) scale(1,1)' }, { transform: 'translateY(-14%) scale(.94,1.08)', offset: .35 }, { transform: 'translateY(0) scale(1.06,.94)', offset: .75 }, { transform: 'translateY(0) scale(1,1)' }], { duration: 400, easing: 'ease-out' });
   }
   /** 打斷正在進行的舔舔／跳跳，讓重要反應（過關、失敗）一定播得出來 */
   function interruptDog() {
@@ -265,9 +358,14 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
     const my = ++rid;
     // 反應裡延遲執行的動作：如果之後又來了新的反應，就不再執行（避免舊表情蓋掉新表情）
     const then = (fn, ms) => later(() => { if (my === rid) fn(); }, ms);
+    // 晚上：會用到大不溜的反應先把牠吵醒，演完自己睡回去
+    if (night && kind !== 'licked') {
+      const wakeMs = { combo: 3000, special: 2600, win: 5000, lose: 4200 }[kind];
+      if (wakeMs) wake(wakeMs);
+    }
     switch (kind) {
       case 'idle':
-        setBear('normal'); setDog('smug');
+        setBear('normal'); setDog(restDog());
         break;
       case 'combo': {
         setBear('happy', 1300); hopBear(16);
@@ -324,7 +422,10 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
         anim(bearHop, [{ transform: 'rotate(0)' }, { transform: 'rotate(-6deg)' }, { transform: 'rotate(6deg)' }, { transform: 'rotate(-4deg)' }, { transform: 'rotate(0)' }], { duration: 600, easing: 'ease-in-out' });
         break;
       case 'licked':
-        dogLick();
+        if (night && dogExpr === 'sleep') nightLick(); else { if (night) wake(3000); dogLick(); }
+        break;
+      case 'yawn':   // （額外）讓丁噹熊打個哈欠，任何時段都可以用
+        bearYawn();
         break;
       default:
         break;
@@ -338,7 +439,18 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
     sfx('bell'); ringBell(); hopBear(10); spray(1, true);
     if (size !== 'small') { tapIdx = (tapIdx + 1) % TAP_LINES.length; say(TAP_LINES[tapIdx], 1800); }
   }
-  function onDog(e) { e.preventDefault(); bark(); }
+  function onDog(e) {
+    e.preventDefault();
+    const withDate = Math.random() < 1 / 3;
+    if (night && dogExpr === 'sleep') {
+      wake(8000);
+      startle();
+      later(() => bark(withDate), 430);
+    } else {
+      if (night) wake(8000);
+      bark(withDate);
+    }
+  }
   if (interactive) {
     bearBtn.addEventListener('click', onBear);
     dogBtn.addEventListener('click', onDog);
@@ -348,15 +460,35 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
 
   // ---------------- 待機循環 ----------------
   const alive = () => !dead && el.isConnected && !document.hidden;
-  (function lickLoop() { later(() => { if (alive()) dogLick(); lickLoop(); }, 6000 + Math.random() * 4000); })();
-  (function hopLoop() { later(() => { if (alive() && !dogBusy) dogHopAnim(); hopLoop(); }, 3500 + Math.random() * 3000); })();
+  (function lickLoop() {
+    later(() => {
+      if (alive()) { if (night && dogExpr === 'sleep') nightLick(); else dogLick(); }
+      lickLoop();
+    }, night ? 15000 + Math.random() * 10000 : 6000 + Math.random() * 4000);
+  })();
+  (function hopLoop() { later(() => { if (alive() && !dogBusy && dogExpr !== 'sleep') dogHopAnim(); hopLoop(); }, 3500 + Math.random() * 3000); })();
+  (function yawnLoop() { later(() => { if (alive() && night && bearExpr === 'normal') bearYawn(); yawnLoop(); }, 15000 + Math.random() * 15000); })();
+
+  // 時段改變（例如玩到一半變晚上）：即時切換
+  const offTod = sleepy ? tod.onChange(p => {
+    const n = p === 'night';
+    if (n === night || dead) return;
+    night = n;
+    awakeUntil = 0;
+    if (night) maybeSleep();
+    else {
+      clearTimeout(sleepTimer); timers.delete(sleepTimer);
+      if (dogExpr === 'sleep') setDog('smug');
+      if (bearExpr === 'yawn') setBear('normal');
+    }
+  }) : () => {};
   (function bellLoop() { later(() => { if (alive()) ringBell(); bellLoop(); }, 12000 + Math.random() * 10000); })();
 
   return {
     el, bear: bearBtn, dog: dogBtn,
     react, say,
     spray: () => spray(1, true),
-    bark,
+    bark: (withDate = false) => bark(withDate),
     setOutfit(eq = {}) {
       bearOutfit = { head: eq.head, ribbon: eq.ribbon, clothes: eq.clothes, hand: eq.hand };
       dogOutfit = { dogHead: eq.dogHead, collar: eq.collar };
@@ -368,6 +500,7 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
     destroy() {
       if (dead) return;
       dead = true;
+      try { offTod(); } catch (e) { /* 已取消 */ }
       timers.forEach(clearTimeout); timers.clear();
       anims.forEach(a => { try { a.cancel(); } catch (e) { /* 已結束 */ } }); anims.clear();
       parts.forEach(p => p.remove()); parts.clear();

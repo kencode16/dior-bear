@@ -605,8 +605,50 @@ export function furnitureSVG(furnitureId) {
 
 // =====================================================================
 // 樹洞小屋背景（viewBox 0 0 360 480）
+// tod：'morning' | 'day'（預設）| 'dusk' | 'night'，窗外天空與窗光跟著變
 // =====================================================================
-export function houseBgSVG() {
+const HOUSE_TOD = {
+  morning: { sky: ['#BCE4FF', '#FFF0CF'], leaf: ['#A6DDAE', '#D0F0D2'], branch: '#A8774F', beam: ['#FFF3C2', .78], beamFar: 150, mote: '#FFF2B0' },
+  day:     { sky: ['#CDEBFA', '#E9F8EE'], leaf: ['#9FD9A9', '#C2EBC8'], branch: '#A8774F', beam: ['#FFFBEA', .55], beamFar: 150, mote: '#FFF6C8' },
+  dusk:    { sky: ['#FF9C8A', '#FFD9A6'], leaf: ['#D7A98A', '#EBC6A4'], branch: '#9A6650', beam: ['#FFB27E', .5], beamFar: 205, mote: '#FFD2B0' },
+  night:   { sky: ['#252C70', '#4D4596'], leaf: ['#405C82', '#5A77A0'], branch: '#4A3C5C', beam: ['#C4D6FF', .34], beamFar: 150, mote: '#E2EAFF' },
+};
+
+/** 窗外的太陽／夕陽／月亮（畫在窗戶裁切區內，在樹葉後面） */
+function windowOrb(tod, wx, wy) {
+  if (tod === 'morning') {
+    const g = uid('wo');
+    return `<defs><radialGradient id="${g}"><stop offset="0" stop-color="#FFF7D6"/><stop offset=".6" stop-color="#FFE38A" stop-opacity=".7"/><stop offset="1" stop-color="#FFE38A" stop-opacity="0"/></radialGradient></defs>` +
+      `<circle cx="${wx + 70}" cy="${wy + 66}" r="44" fill="url(#${g})"/>` +
+      `<circle cx="${wx + 70}" cy="${wy + 66}" r="21" fill="#FFE17A" stroke="#F5B942" stroke-width="2.4"/>` +
+      `<path d="M${wx + 62} ${wy + 66} q4 -4 8 0 M${wx + 72} ${wy + 66} q4 -4 8 0" stroke="${INK}" stroke-width="1.8" fill="none" stroke-linecap="round"/>` +
+      `<ellipse cx="${wx + 59}" cy="${wy + 72}" rx="3.4" ry="2" fill="#FF8FA3" opacity=".5"/><ellipse cx="${wx + 81}" cy="${wy + 72}" rx="3.4" ry="2" fill="#FF8FA3" opacity=".5"/>`;
+  }
+  if (tod === 'day') {
+    return `<circle cx="${wx + 80}" cy="${wy + 28}" r="16" fill="#FFF6C8" opacity=".9"/>` +
+      `<path d="M${wx + 36} ${wy + 40} q6 -10 16 -4 q8 -8 16 2 q8 0 6 8 h-34 q-8 0 -4 -6 Z" fill="#fff" opacity=".95"/>`;
+  }
+  if (tod === 'dusk') {
+    const g = uid('wo');
+    return `<defs><radialGradient id="${g}"><stop offset="0" stop-color="#FFE0A0"/><stop offset=".55" stop-color="#FFB070" stop-opacity=".7"/><stop offset="1" stop-color="#FF9A7A" stop-opacity="0"/></radialGradient></defs>` +
+      `<circle cx="${wx + 62}" cy="${wy + 86}" r="46" fill="url(#${g})"/>` +
+      `<circle cx="${wx + 62}" cy="${wy + 86}" r="20" fill="#FFA45E" stroke="#E9774A" stroke-width="2.4"/>` +
+      `<path d="M${wx + 4} ${wy + 40} h40 M${wx + 56} ${wy + 30} h46 M${wx + 20} ${wy + 54} h34" stroke="#FFC4CF" stroke-width="5" stroke-linecap="round" opacity=".85"/>` +
+      `<path d="M${wx + 74} ${wy + 46} q3 -4 6 0 q3 -4 6 0" stroke="#8E5A6A" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  }
+  // night：彎月＋星星
+  let stars = '';
+  [[12, 14, 1.6], [34, 30, 1.2], [56, 10, 1.4], [96, 52, 1.2], [20, 46, 1], [70, 44, 1.1], [88, 14, 1]].forEach(([x, y, r], i) => {
+    stars += i % 2 ? `<circle cx="${wx + x}" cy="${wy + y}" r="${r}" fill="#FFF6D0"/>` : `<path d="${sparkle(wx + x, wy + y, r * 3)}" fill="#FFF6D0"/>`;
+  });
+  return `<circle cx="${wx + 76}" cy="${wy + 30}" r="26" fill="#FFF3C4" opacity=".14"/>` +
+    `<path d="M${wx + 80} ${wy + 14} A17 17 0 1 0 ${wx + 92} ${wy + 42} A13 13 0 1 1 ${wx + 80} ${wy + 14} Z" fill="#FFE59A" stroke="#E9B95A" stroke-width="2"/>` +
+    `<path d="M${wx + 66} ${wy + 30} q3 3 6 0" stroke="${INK}" stroke-width="1.6" fill="none" stroke-linecap="round"/>` + stars;
+}
+
+export function houseBgSVG(opts = {}) {
+  const tod = HOUSE_TOD[opts && opts.tod] ? opts.tod : 'day';
+  const T = HOUSE_TOD[tod];
   const gw = uid('hw'), gf = uid('hf'), gb = uid('hb'), gs = uid('hs'), gl = uid('hl'), gm = uid('hm'), gd = uid('gd'), cpW = uid('cw'), cpR = uid('cr'), gq = uid('hq');
   const room = `M10 480 V112 Q10 6 180 4 Q350 6 350 112 V480 Z`;
   const { x: wx, y: wy, w: ww, h: wh } = WINDOW;
@@ -629,17 +671,17 @@ export function houseBgSVG() {
   for (let x = 13; x < 360; x += 26) qdots += `<circle cx="${x}" cy="268" r="1.5" fill="#E8C26A"/>`;
   // 窗外
   const outside = `<rect x="${wx}" y="${wy}" width="${ww}" height="${wh}" fill="url(#${gs})"/>` +
-    `<circle cx="${wx + 80}" cy="${wy + 28}" r="16" fill="#FFF6C8" opacity=".9"/>` +
-    [[wx + 6, wy + 20, 22], [wx + 28, wy + 4, 20], [wx + 98, wy + 66, 24], [wx + 10, wy + 82, 26], [wx + 60, wy + 98, 22]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#9FD9A9"/><circle cx="${x - r * .3}" cy="${y - r * .3}" r="${r * .55}" fill="#C2EBC8"/>`).join('') +
-    `<path d="M${wx + 40} ${wy + 110} Q${wx + 46} ${wy + 70} ${wx + 70} ${wy + 54}" stroke="#A8774F" stroke-width="5" fill="none" stroke-linecap="round"/>` +
-    `<ellipse cx="${wx + 72}" cy="${wy + 50}" rx="9" ry="5" fill="#8FD9A6" transform="rotate(-30 ${wx + 72} ${wy + 50})"/>`;
+    windowOrb(tod, wx, wy) +
+    [[wx + 6, wy + 20, 22], [wx + 28, wy + 4, 20], [wx + 98, wy + 66, 24], [wx + 10, wy + 82, 26], [wx + 60, wy + 98, 22]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${T.leaf[0]}"/><circle cx="${x - r * .3}" cy="${y - r * .3}" r="${r * .55}" fill="${T.leaf[1]}"/>`).join('') +
+    `<path d="M${wx + 40} ${wy + 110} Q${wx + 46} ${wy + 70} ${wx + 70} ${wy + 54}" stroke="${T.branch}" stroke-width="5" fill="none" stroke-linecap="round"/>` +
+    `<ellipse cx="${wx + 72}" cy="${wy + 50}" rx="9" ry="5" fill="${tod === 'night' ? '#6F8FB8' : tod === 'dusk' ? '#E7B48A' : '#8FD9A6'}" transform="rotate(-30 ${wx + 72} ${wy + 50})"/>`;
 
   return svg(`<defs>
     <linearGradient id="${gw}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F9DFB2"/><stop offset="1" stop-color="#F2CB92"/></linearGradient>
     <linearGradient id="${gf}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9BE8A"/><stop offset="1" stop-color="#E0AE78"/></linearGradient>
     <linearGradient id="${gb}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9B6B47"/><stop offset=".5" stop-color="#B07D55"/><stop offset="1" stop-color="#9B6B47"/></linearGradient>
-    <linearGradient id="${gs}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CDEBFA"/><stop offset="1" stop-color="#E9F8EE"/></linearGradient>
-    <linearGradient id="${gl}" x1="0" y1="0" x2="-.6" y2="1"><stop offset="0" stop-color="#FFFBEA" stop-opacity=".55"/><stop offset="1" stop-color="#FFFBEA" stop-opacity="0"/></linearGradient>
+    <linearGradient id="${gs}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${T.sky[0]}"/><stop offset="1" stop-color="${T.sky[1]}"/></linearGradient>
+    <linearGradient id="${gl}" x1="0" y1="0" x2="-.6" y2="1"><stop offset="0" stop-color="${T.beam[0]}" stop-opacity="${T.beam[1]}"/><stop offset="1" stop-color="${T.beam[0]}" stop-opacity="0"/></linearGradient>
     <linearGradient id="${gm}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3FBFF"/><stop offset="1" stop-color="#D3E9F6"/></linearGradient>
     <linearGradient id="${gq}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFEFF2"/><stop offset="1" stop-color="#FFE2E8"/></linearGradient>
     ${goldGrad(gd)}
@@ -666,8 +708,8 @@ export function houseBgSVG() {
     `<rect y="296" width="360" height="10" fill="#C99560"/><rect y="296" width="360" height="2.4" fill="#E9BE8A"/>` +
     `<rect y="306" width="360" height="174" fill="url(#${gf})"/>` + planks +
     // 窗光
-    `<path d="M${wx} ${wy + wh} L${wx + ww} ${wy + wh} L${wx + 30} 470 L${wx - 150} 470 Z" fill="url(#${gl})"/>` +
-    [[wx - 20, 260, 2.2], [wx - 52, 330, 1.8], [wx - 10, 360, 2.4], [wx - 90, 420, 1.8], [wx - 40, 400, 1.4]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#FFF6C8" opacity=".9"/>`).join('') +
+    `<path d="M${wx} ${wy + wh} L${wx + ww} ${wy + wh} L${wx + 30} 470 L${wx - T.beamFar} 470 Z" fill="url(#${gl})"/>` +
+    [[wx - 20, 260, 2.2], [wx - 52, 330, 1.8], [wx - 10, 360, 2.4], [wx - 90, 420, 1.8], [wx - 40, 400, 1.4]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${T.mote}" opacity="${tod === 'night' ? .7 : .9}"/>`).join('') +
     // 地板小細節：落葉、木節
     `<path d="M300 452 q8 -10 16 0 q-8 10 -16 0 Z" fill="#F3A47E" opacity=".8" transform="rotate(-20 308 452)"/>` +
     `<ellipse cx="96" cy="452" rx="9" ry="3" fill="none" stroke="#C99560" stroke-width="1.6" opacity=".6"/>` +
@@ -680,6 +722,61 @@ export function houseBgSVG() {
     `<path d="M14 92 q10 -10 18 2 q-10 8 -18 -2 Z" fill="#9FD9A9" stroke="#4FA06A" stroke-width="1.6"/>` +
     // 梳妝台（固定）：上層香水架（VANITY_SHELF，空著）＋中間鏡子＋桌面＋抽屜
     vanity(V, S, gm, gd), '0 0 360 480');
+}
+
+// =====================================================================
+// 小屋光線層（viewBox 0 0 360 480），由介面疊在家具上、角色下：
+//   shade：用 mix-blend-mode:multiply 疊（黃昏偏暖、晚上變暗偏藍；燈、窗邊、角色附近留亮區）
+//   glow ：用 mix-blend-mode:screen 疊（燈光暈、晨光、晚霞光、月光、香水微光）
+// lamp：目前擺的燈 id（晚上才會亮）。回傳 { shade, glow }，沒有的層為 ''。
+// =====================================================================
+const LAMP_LIGHT = {
+  f_lamp_mushroom: { x: 180, y: 74, r: 128, c: '#FFC46A', core: '#FFE4A0' },
+  f_lamp_moon:     { x: 178, y: 58, r: 120, c: '#FFD878', core: '#FFEDB8' },
+  f_lamp_string:   { x: 180, y: 56, r: 112, c: '#FFCF8A', core: '#FFE9C0', dots: [[160, 31], [159.5, 59], [162, 89], [180, 27], [180, 53], [180, 79], [199, 35], [200, 59], [198, 81]] },
+};
+
+export function houseLightSVG(tod, opts = {}) {
+  const lamp = LAMP_LIGHT[opts.lamp] || null;
+  const VB = '0 0 360 480';
+  const radial = (id, c, o0 = 1, mid = .45, omid = .5) => `<radialGradient id="${id}"><stop offset="0" stop-color="${c}" stop-opacity="${o0}"/><stop offset="${mid}" stop-color="${c}" stop-opacity="${omid}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+  const { x: wx, y: wy, w: ww, h: wh } = WINDOW;
+  const S = VANITY_SHELF;
+  if (tod === 'night') {
+    const m = uid('lm'), h = uid('lh'), hs = uid('lhs'), gL = uid('lg'), gW = uid('lw'), gP = uid('lp'), gC = uid('lc');
+    // 遮罩：白＝套用暗色，黑＝留亮
+    const holes =
+      (lamp ? `<circle cx="${lamp.x}" cy="${lamp.y}" r="${lamp.r}" fill="url(#${h})"/><ellipse cx="${lamp.x}" cy="${lamp.y + 150}" rx="${lamp.r * 1.25}" ry="${lamp.r * .9}" fill="url(#${hs})"/>` : '') +
+      `<ellipse cx="${wx + ww / 2}" cy="${wy + wh / 2}" rx="${ww * .75}" ry="${wh * .75}" fill="url(#${hs})"/>` +
+      `<path d="M${wx} ${wy + wh} L${wx + ww} ${wy + wh} L${wx + 30} 470 L${wx - 150} 470 Z" fill="#000" opacity=".22"/>` +
+      `<ellipse cx="180" cy="400" rx="${lamp ? 130 : 105}" ry="${lamp ? 92 : 74}" fill="url(#${hs})"/>` +
+      (!lamp ? `<ellipse cx="${S.x + S.w / 2}" cy="${S.y + S.h / 2}" rx="${S.w * .8}" ry="${S.h * 1.4}" fill="url(#${hs})"/>` : '');
+    const shade = svg(`<defs>${radial(h, '#000', 1, .5, .8)}${radial(hs, '#000', .7, .5, .35)}` +
+      `<mask id="${m}" maskUnits="userSpaceOnUse" x="0" y="0" width="360" height="480"><rect width="360" height="480" fill="#fff"/>${holes}</mask></defs>` +
+      `<rect width="360" height="480" fill="#7F86CA" mask="url(#${m})"/>`, VB);
+    const glow = svg(`<defs>${lamp ? radial(gL, lamp.c, .62, .35, .3) + radial(gC, lamp.core, .85, .5, .45) : ''}${radial(gW, '#9FB8FF', .38)}${radial(gP, '#FFB3C8', .55)}</defs>` +
+      (lamp ? `<circle cx="${lamp.x}" cy="${lamp.y}" r="${lamp.r}" fill="url(#${gL})"/><ellipse cx="${lamp.x}" cy="${lamp.y + 165}" rx="${lamp.r * 1.1}" ry="${lamp.r * .55}" fill="url(#${gL})" opacity=".55"/>` +
+        (lamp.dots ? lamp.dots.map(([x, y]) => `<circle cx="${x}" cy="${y + 3}" r="15" fill="url(#${gC})"/>`).join('') : `<circle cx="${lamp.x}" cy="${lamp.y}" r="24" fill="url(#${gC})"/>`) : '') +
+      `<ellipse cx="${wx + ww / 2}" cy="${wy + wh / 2}" rx="${ww * .9}" ry="${wh * .8}" fill="url(#${gW})"/>` +
+      (!lamp ? `<ellipse cx="${S.x + S.w / 2}" cy="${S.y + S.h / 2}" rx="${S.w * .65}" ry="${S.h * 1.1}" fill="url(#${gP})"/>` : ''), VB);
+    return { shade, glow };
+  }
+  if (tod === 'dusk') {
+    const g = uid('ld'), g2 = uid('ld');
+    const shade = svg(`<rect width="360" height="480" fill="#FFE2CF"/>`, VB);
+    const glow = svg(`<defs>${radial(g, '#FF9A6A', .4)}${radial(g2, '#FF8FB0', .26)}</defs>` +
+      `<ellipse cx="${wx + ww / 2}" cy="${wy + wh / 2 + 10}" rx="${ww}" ry="${wh}" fill="url(#${g})"/>` +
+      `<ellipse cx="${wx - 70}" cy="420" rx="150" ry="70" fill="url(#${g2})"/>`, VB);
+    return { shade, glow };
+  }
+  if (tod === 'morning') {
+    const g = uid('lmn');
+    const glow = svg(`<defs>${radial(g, '#FFE9A8', .6)}</defs>` +
+      `<ellipse cx="${wx + ww / 2}" cy="${wy + wh / 2}" rx="${ww * 1.2}" ry="${wh * 1.1}" fill="url(#${g})"/>` +
+      `<ellipse cx="${wx - 50}" cy="420" rx="140" ry="64" fill="url(#${g})" opacity=".7"/>`, VB);
+    return { shade: '', glow };
+  }
+  return { shade: '', glow: '' };
 }
 
 function vanity(V, S, gm, gd) {

@@ -4,8 +4,19 @@ import { friendSVG, perfumeBottleSVG, stickerSVG } from '../art/collections.js';
 import { itemIconSVG } from '../art/chars.js';
 import { STORY } from '../data/story.js';
 import { topBar, janitor, svgImg, safe, esc, starRow, starIcon, bearHead, bearSay, showCards, ICONS } from './uikit.js';
+import tod from '../timeOfDay.js';
 
-let j = null, bar = null;
+let j = null, bar = null, sky = null, offTod = null;
+
+// 地圖最上方天空卡的問候
+const SKY_HELLO = {
+  morning: ['早安！', '今天也香香的出發吧～'],
+  day: ['午安～', '陽光暖暖的，冒險好舒服'],
+  dusk: ['黃昏了～', '晚霞好漂亮，再玩一關吧'],
+  night: ['晚安～', '夜晚的冒險也很有趣喔'],
+};
+// 每章段落的時段色調層（CSS 依 html[data-tod] 切換，淡入淡出）
+const TOD_TINT = `<div class="u-ch-tod" aria-hidden="true"><i class="t-morning"></i><i class="t-day"></i><i class="t-dusk"></i><i class="t-night"></i><i class="t-stars"></i></div>`;
 
 const BANNER_H = 150;   // 章節標題卡高度（px）
 const STEP = 92;        // 關卡點的垂直間距（px）
@@ -72,6 +83,7 @@ function buildChapter(app, ch, cur) {
   const chStars = s.chapterStars(ch);
   return `
   <section class="u-ch${locked ? ' locked' : ''}" data-ch="${ch}" style="height:${H}px;background:${theme.bg};--accent:${theme.accent || 'var(--pink)'}">
+    ${TOD_TINT}
     <svg class="u-path" viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true">
       <path d="${smoothPath(pts)}" class="u-path-under"/>
       <path d="${smoothPath(pts)}" class="u-path-line"/>
@@ -136,9 +148,20 @@ export default {
     const cur = app.save.unlockedLevel();
     const wrap = document.createElement('div');
     wrap.className = 'u-map-wrap';
-    wrap.innerHTML = CHAPTERS.map(C => buildChapter(app, C.id, cur)).join('') +
+    wrap.innerHTML = `<div class="u-map-sky"><div class="u-map-hello"><b></b><span></span></div></div>` + CHAPTERS.map(C => buildChapter(app, C.id, cur)).join('') +
       `<div class="u-map-end">${app.save.isCleared(TOTAL_LEVELS) ? '全部冒險完成！丁噹熊的招牌香水完成了♡' : '更多冒險，敬請期待～'}</div>`;
     root.appendChild(wrap);
+    const skyCard = wrap.querySelector('.u-map-sky');
+    sky = safe(() => tod.mountSky(skyCard), null);
+    if (sky) skyCard.prepend(sky.el);
+    const hello = p => {
+      const [a, b] = SKY_HELLO[p] || SKY_HELLO.day;
+      skyCard.dataset.tod = p;
+      skyCard.querySelector('b').textContent = a;
+      skyCard.querySelector('span').textContent = b;
+    };
+    hello(tod.current());
+    offTod = tod.onChange(hello);
 
     // 捲到目前的關卡（或剛通過的那關）
     const focusId = Number(params.justCleared) || cur;
@@ -170,6 +193,8 @@ export default {
     j.timeout(() => afterReturn(app, params), 350);
   },
   unmount() {
+    offTod?.(); offTod = null;
+    sky?.destroy(); sky = null;
     j?.clean(); j = null;
     bar?.destroy(); bar = null;
     document.querySelector('.u-say')?.remove();

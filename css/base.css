@@ -38,3 +38,29 @@ html,body{height:100%}
 .card{background:var(--card);border:2px solid var(--gold-line);border-radius:22px;box-shadow:var(--shadow)}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%);z-index:1000;background:var(--card);border:2px solid var(--gold-line);border-radius:999px;padding:8px 18px;box-shadow:var(--shadow);font-weight:700;animation:toastIn .25s ease-out}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ===== 時段天空（主代理擁有；js/timeOfDay.js、js/art/sky.js） ===== */
+.tod-sky{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.tod-sky.fixed{position:fixed;z-index:-1}
+.tod-layer{position:absolute;inset:0;opacity:0;transition:opacity 2.5s ease}
+.tod-layer.on{opacity:1}
+.tod-layer > div{position:absolute}
+.tod-layer svg{display:block;width:100%;height:auto}
+.tod-layer[data-period=morning]{background:linear-gradient(180deg,rgba(255,232,160,.55) 0%,rgba(255,246,220,.22) 38%,rgba(255,255,255,0) 68%)}
+.tod-layer[data-period=day]{background:linear-gradient(180deg,rgba(160,212,255,.50) 0%,rgba(214,236,255,.22) 40%,rgba(255,255,255,0) 70%)}
+.tod-layer[data-period=dusk]{background:linear-gradient(180deg,rgba(255,138,110,.58) 0%,rgba(255,172,140,.42) 35%,rgba(236,150,196,.34) 70%,rgba(190,140,205,.32) 100%)}
+.tod-layer[data-period=night]{background:linear-gradient(180deg,rgba(26,30,86,.80) 0%,rgba(46,44,108,.68) 50%,rgba(66,54,118,.60) 100%)}
+.tod-glow{border-radius:50%;background:radial-gradient(closest-side,rgba(255,196,140,.75),rgba(255,160,140,0))}
+.tod-sun .tod-rays{transform-origin:100px 100px;animation:todSpin 60s linear infinite}
+.tod-sun{animation:todBob 7s ease-in-out infinite}
+.tod-moon{animation:todBob 9s ease-in-out infinite}
+.tod-cloud{animation:todDrift 26s ease-in-out infinite alternate}
+.tod-cloud.slow{animation-duration:38s}
+.tod-star{animation:todTwinkle 2.6s ease-in-out infinite}
+.tod-star.t2{animation-delay:-.9s;animation-duration:3.4s}
+.tod-star.t3{animation-delay:-1.7s;animation-duration:2.1s}
+@keyframes todSpin{to{transform:rotate(360deg)}}
+@keyframes todBob{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+@keyframes todDrift{from{transform:translateX(-12px)}to{transform:translateX(18px)}}
+@keyframes todTwinkle{0%,100%{opacity:.95;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+@media (prefers-reduced-motion:reduce){.tod-sky *{animation:none!important}}

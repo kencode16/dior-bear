@@ -86,6 +86,9 @@ export default {
     if (theme.frameBg) $('.g-frame').style.background = theme.frameBg;
     if (theme.boardBg) st.el.board.style.background = theme.boardBg;
 
+    // 時段天空（主代理加）：疊在章節背景（::before）上、遊戲內容下；棋盤本身不變色
+    try { if (app.tod) st.sky = app.tod.mountSky(root, { fixed: true }); } catch (e) { console.error('天空層載入失敗', e); }
+
     // 角色
     try { st.duo = mountDuo($('.g-duo'), { size: 'game', app }); } catch (e) { console.error('角色載入失敗', e); }
     try { st.duo && st.duo.setOutfit && st.duo.setOutfit(app.save.equipped()); } catch (e) { console.error(e); }
@@ -150,6 +153,7 @@ export default {
     S.timers.forEach(t => clearTimeout(t));
     try { S.board && S.board.destroy(); } catch (e) { console.error(e); }
     try { S.duo && S.duo.destroy(); } catch (e) { console.error(e); }
+    try { S.sky && S.sky.destroy(); } catch (e) { console.error(e); }
     if (window.__game && window.__game._st === S) delete window.__game;
     S = null;
   },
