@@ -35,10 +35,11 @@ function bearFriend(o, happy) {
   const furFill = `url(#${g})`;
   let s = `<defs><radialGradient id="${g}" cx=".38" cy=".3" r=".85"><stop offset="0" stop-color="${mix(F, '#ffffff', .2)}"/><stop offset="1" stop-color="${F}"/></radialGradient></defs>`;
   s += `<ellipse cx="100" cy="213" rx="62" ry="5" fill="#B98A64" opacity=".2"/>`;
+  s += o.back || '';   // 身體後面的東西（小楓的尾巴）
   // 腳
   for (const x of [74, 126]) s += `<ellipse cx="${x}" cy="200" rx="22" ry="13" fill="${limbF}" stroke="${limbL}" stroke-width="${sw}"/>` + pads(x, 204);
   // 身體
-  s += `<ellipse cx="100" cy="166" rx="54" ry="42" fill="${furFill}" stroke="${L}" stroke-width="${sw}"/>`;
+  s += `<ellipse cx="100" cy="166" rx="54" ry="42" fill="${o.bodyFill || furFill}" stroke="${o.bodyLine || L}" stroke-width="${sw}"/>`;
   if (o.belly) s += `<ellipse cx="100" cy="177" rx="31" ry="25" fill="${o.belly}"/>`;
   s += o.bodyExtra || '';
   // 手
@@ -46,7 +47,8 @@ function bearFriend(o, happy) {
   s += o.armRight ?? `<ellipse cx="150" cy="168" rx="14" ry="21" fill="${limbF}" stroke="${limbL}" stroke-width="${sw}" transform="rotate(-24 150 168)"/>`;
   s += o.mid || '';
   // 耳朵＋頭
-  for (const x of [ex, 200 - ex]) s += `<circle cx="${x}" cy="${ey}" r="${er}" fill="${earF}" stroke="${earL}" stroke-width="${sw}"/><circle cx="${x}" cy="${ey}" r="${er * .52}" fill="${o.inner}"/>`;
+  if (o.ears != null) s += o.ears;   // 自訂耳朵（小楓的尖耳朵）
+  else for (const x of [ex, 200 - ex]) s += `<circle cx="${x}" cy="${ey}" r="${er}" fill="${earF}" stroke="${earL}" stroke-width="${sw}"/><circle cx="${x}" cy="${ey}" r="${er * .52}" fill="${o.inner}"/>`;
   s += `<ellipse cx="100" cy="94" rx="70" ry="57" fill="${furFill}" stroke="${L}" stroke-width="${sw}"/>`;
   s += shine(62, 66, 10, 5, -30, o.dark ? .22 : .7);
   s += o.headExtra || '';
@@ -154,7 +156,111 @@ const FRIEND_ART = {
         shine(86, 164, 3, 1.6, -20, .7),
     }, h);
   },
+  // 台灣黑熊「黑糖」：黑毛、胸前白色 V 字、圓耳朵、熊熊學校老師（金框圓眼鏡、耳後夾鉛筆、抱著繪本）
+  heitang(h) {
+    const F = '#3B3236', L = '#211A1D';
+    const glasses =
+      [76, 124].map(x => `<circle cx="${x}" cy="94" r="14" fill="#FFF3E6" opacity=".88"/>`).join('') +
+      `<path d="M62 90 L45 82 M138 90 L155 82" stroke="#C98F1F" stroke-width="3.4" stroke-linecap="round"/>` +
+      [76, 124].map(x => `<circle cx="${x}" cy="94" r="14" fill="none" stroke="#C98F1F" stroke-width="4.6"/><circle cx="${x}" cy="94" r="14" fill="none" stroke="#FFDA7E" stroke-width="1.9"/>`).join('') +
+      `<path d="M90 91 Q100 84.5 110 91" fill="none" stroke="#C98F1F" stroke-width="4.2" stroke-linecap="round"/><path d="M90 91 Q100 84.5 110 91" fill="none" stroke="#FFDA7E" stroke-width="1.6" stroke-linecap="round"/>` +
+      [76, 124].map(x => `<path d="M${x - 9} 88 Q${x - 7} 83.5 ${x - 2} 82.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`).join('');
+    // 耳後夾的小鉛筆
+    const pencil = `<g transform="translate(150 40) rotate(-28)">` +
+      `<rect x="-20" y="-4" width="30" height="8" rx="2" fill="#FFD36E" stroke="#C98F1F" stroke-width="2"/>` +
+      `<path d="M-14 -4 V4 M-8 -4 V4" stroke="#E9B23C" stroke-width="1.2"/>` +
+      `<rect x="-26" y="-4" width="7" height="8" rx="2.4" fill="#FF9EB5" stroke="#E0668A" stroke-width="2"/>` +
+      `<path d="M10 -4 L19 0 L10 4 Z" fill="#F7DDB8" stroke="#C98F1F" stroke-width="2" ${SW}/><path d="M16.2 -1.3 L19 0 L16.2 1.3 Z" fill="${INK}"/></g>`;
+    // 繪本（封面：小蘋果＋書名線）
+    const book = `<g transform="translate(160 177) rotate(-12)">` +
+      `<rect x="-17" y="-22" width="36" height="44" rx="4" fill="#FFFDF6" stroke="#C9A77E" stroke-width="2.4"/>` +
+      `<path d="M15 -16 V18 M11.5 -16 V18" stroke="#E6D3B8" stroke-width="1"/>` +
+      `<rect x="-20" y="-25" width="36" height="44" rx="4" fill="#A8E6B8" stroke="#4FA06A" stroke-width="3"/>` +
+      `<rect x="-20" y="-25" width="8" height="44" rx="3" fill="#FF9EB5" stroke="#E0668A" stroke-width="2.4"/>` +
+      `<rect x="-8" y="-19" width="20" height="21" rx="4" fill="#FFF8EC"/>` +
+      `<path d="M2 -14 Q-6 -16 -6 -8 Q-6 0 2 -1 Q10 0 10 -8 Q10 -16 2 -14 Z" fill="#FF8FA8" stroke="#D9557E" stroke-width="1.8" ${SW}/>` +
+      `<path d="M2 -14 Q2 -17 4 -19" fill="none" stroke="#9B6B47" stroke-width="1.6" stroke-linecap="round"/><path d="M4 -16 Q8 -19 9 -15 Q6 -14 4 -16 Z" fill="#7DD39A"/>` +
+      dot(-2.5, -10, 1.3, .85) +
+      `<path d="M-7 8 H11 M-5 13 H9" stroke="#4FA06A" stroke-width="2" stroke-linecap="round" opacity=".8"/></g>`;
+    return bearFriend({
+      fur: F, line: L, inner: '#C99595', muzzle: '#E8C59C', muzzleLine: '#B48A60', nose: '#2A1F22', dark: true,
+      earR: 21, earX: 52, earY: 46, muzzleRx: 23, muzzleRy: 16,
+      // 胸前白色 V 字（台灣黑熊的招牌）
+      bodyExtra: `<path d="M60 143 Q82 165 100 191 Q118 165 140 143 Q129 137 122 145 Q111 160 100 174 Q89 160 78 145 Q71 137 60 143 Z" fill="#FFF7EA" stroke="#E2D2BC" stroke-width="2.2" ${SW}/>` +
+        `<path d="M70 146 Q84 160 96 176" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>`,
+      headExtra: glasses + pencil,
+      front: book + `<circle cx="146" cy="190" r="10" fill="${F}" stroke="${L}" stroke-width="4"/>` + shine(143, 186, 3, 1.6, -30, .3),
+    }, h);
+  },
+  // 小熊貓「小楓」：橘紅毛、白色臉部花紋與淚痕、尖耳朵、蓬蓬條紋尾巴；遊樂園樂隊指揮（樂隊帽＋制服＋指揮棒）
+  maple(h) {
+    const F = '#F59A62', L = '#B85F36', DK = '#5E3D36', DKL = '#3B2522', J = '#A9B8F4', JL = '#6E7DC6';
+    const gd = uid('gd'), cp = uid('mj'), cp2 = uid('mj');
+    // 尾巴：粗筆畫＋虛線做出一圈一圈的條紋
+    const tail = 'M68 192 Q26 200 22 160 Q19 128 42 112';
+    const back = `<path d="${tail}" fill="none" stroke="${L}" stroke-width="37" stroke-linecap="round"/>` +
+      `<path d="${tail}" fill="none" stroke="${F}" stroke-width="30" stroke-linecap="round"/>` +
+      `<path d="${tail}" fill="none" stroke="#FFDDBB" stroke-width="30" stroke-dasharray="9 13" stroke-dashoffset="-14"/>` +
+      `<path d="M30 168 Q26 140 40 124" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".45"/>` +
+      `<path d="M42 112 m-10 -4 q4 -6 10 -4 q6 -4 9 2" fill="none" stroke="${L}" stroke-width="2.4" stroke-linecap="round"/>`;
+    // 尖耳朵：外圈白毛、裡面深紅棕（右耳＝左耳鏡像）
+    const earL = `<path d="M33 70 Q26 32 47 19 Q66 14 80 42 Z" fill="#FFFFFF" stroke="${L}" stroke-width="5" ${SW}/>` +
+      `<path d="M42 62 Q38 38 50 29 Q62 27 71 44 Z" fill="#8A4A38"/>`;
+    const ears = earL + `<g transform="translate(200 0) scale(-1 1)">${earL}</g>`;
+    // 臉部花紋：白眉毛點、白臉頰、深色淚痕
+    const faceMarks =
+      `<ellipse cx="74" cy="71" rx="9.5" ry="6.5" fill="#fff" transform="rotate(-12 74 71)"/><ellipse cx="126" cy="71" rx="9.5" ry="6.5" fill="#fff" transform="rotate(12 126 71)"/>` +
+      `<path d="M34 104 Q38 90 55 92 Q68 95 70 110 Q69 130 55 136 Q40 134 34 120 Z" fill="#fff"/>` +
+      `<path d="M166 104 Q162 90 145 92 Q132 95 130 110 Q131 130 145 136 Q160 134 166 120 Z" fill="#fff"/>` +
+      `<path d="M78 104 Q76 117 75 130 M122 104 Q124 117 125 130" fill="none" stroke="#C25E38" stroke-width="6.5" stroke-linecap="round"/>`;
+    // 樂隊帽（高筒帽＋金色帽帶＋星星徽章＋羽毛）
+    const hat = `<g transform="rotate(-7 100 44)">` +
+      `<path d="M100 16 C90 11 91 2 99 1.5 C107 2 110 10 100 16 Z" fill="#FF9EB5" stroke="#E0668A" stroke-width="2.2" ${SW}/><path d="M98 13 Q95 8 99 4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".85"/>` +
+      `<path d="M79 47 L82 16 Q100 10 118 16 L121 47 Q100 53 79 47 Z" fill="${J}" stroke="${JL}" stroke-width="3.4" ${SW}/>` +
+      `<path d="M80.2 36 Q100 41 119.8 36 L120.6 45 Q100 50.5 79.4 45 Z" fill="url(#${gd})"/>` +
+      `<path d="${star5(100, 27, 7, 3.2)}" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.6" ${SW}/>` +
+      shine(87, 24, 2.4, 6, 0, .55) +
+      `<path d="M75 47 Q100 59 125 47 Q100 52 75 47 Z" fill="#4E5486" stroke="#363A66" stroke-width="2.4" ${SW}/></g>`;
+    // 制服（裁在身體橢圓內）：雙排金扣、金色繩飾、下擺金邊
+    const jacket = `<defs>${goldGrad(gd)}<clipPath id="${cp}"><ellipse cx="100" cy="166" rx="54" ry="42"/></clipPath><clipPath id="${cp2}"><rect x="0" y="0" width="200" height="186"/></clipPath></defs>` +
+      `<g clip-path="url(#${cp})"><path d="M40 118 H160 V184 Q100 200 40 184 Z" fill="${J}"/>` +
+      `<path d="M40 184 Q100 200 160 184" fill="none" stroke="#E2B84E" stroke-width="4.5"/>` +
+      `<path d="M100 150 V194" stroke="${JL}" stroke-width="2.2"/>` +
+      `<path d="M58 152 Q64 172 60 190 M142 152 Q136 172 140 190" fill="none" stroke="#fff" stroke-width="2.4" opacity=".35" stroke-linecap="round"/></g>` +
+      `<g clip-path="url(#${cp2})"><ellipse cx="100" cy="166" rx="54" ry="42" fill="none" stroke="${JL}" stroke-width="5"/></g>` +
+      [160, 172, 184].map(y => `<path d="M90 ${y} H110" stroke="#FFE08A" stroke-width="2.6" stroke-linecap="round"/>` +
+        `<circle cx="89" cy="${y}" r="3.3" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.3"/><circle cx="111" cy="${y}" r="3.3" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.3"/>`).join('');
+    // 袖子（制服色）＋金色袖口＋肩章；右手高舉
+    const sleeve = (cx, cy, rot) => `<ellipse cx="${cx}" cy="${cy}" rx="14" ry="21" fill="${J}" stroke="${JL}" stroke-width="5" transform="rotate(${rot} ${cx} ${cy})"/>`;
+    const armLeft = sleeve(50, 168, 24) +
+      `<ellipse cx="45" cy="180" rx="11.5" ry="4" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.6" transform="rotate(24 45 180)"/>` +
+      `<circle cx="42" cy="187" r="9.5" fill="${DK}" stroke="${DKL}" stroke-width="4"/>` +
+      `<path d="M47 152 Q58 141 70 151 Z" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.8" ${SW}/><path d="M50 152 V157 M55 151 V157 M60 151 V157 M65 151 V156" stroke="#E2B84E" stroke-width="1.8" stroke-linecap="round"/>`;
+    const armRight = sleeve(154, 140, 38) +
+      `<ellipse cx="162" cy="129" rx="11.5" ry="4" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.6" transform="rotate(38 162 129)"/>` +
+      `<path d="M130 151 Q140 140 153 147 Z" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.8" ${SW}/><path d="M134 150 V155 M139 148 V154 M144 147 V153 M149 147 V152" stroke="#E2B84E" stroke-width="1.8" stroke-linecap="round"/>`;
+    // 指揮棒＋右手掌（畫在最前面）
+    const baton = `<path d="M166 124 L189 84" stroke="#C98F1F" stroke-width="5.6" stroke-linecap="round"/><path d="M166 124 L189 84" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>` +
+      `<circle cx="167" cy="122" r="4.6" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.4"/>` +
+      `<circle cx="166" cy="124" r="9.5" fill="${DK}" stroke="${DKL}" stroke-width="4"/>` +
+      sparkleAt(190, 80, h ? 7 : 5, '#FFF6D8', '#E8C26A');
+    const notes = noteAt(30, 76, 1, '#BBA8F2', '#7D68C2') + (h ? noteAt(176, 44, .8, '#FF9EB5', '#E0668A') + noteAt(16, 108, .7, '#8CCBEA', '#4F95C2') : '');
+    return bearFriend({
+      fur: F, line: L, limbFill: DK, limbLine: DKL, bodyFill: DK, bodyLine: DKL,
+      muzzle: '#FFFFFF', muzzleLine: '#EBCFC0', nose: '#3A2622', muzzleRx: 22, muzzleRy: 15,
+      back, ears, bodyExtra: jacket, armLeft, armRight, headExtra: faceMarks + hat,
+      front: baton + notes,
+    }, h);
+  },
 };
+
+/** 小音符（中心約在符頭） */
+function noteAt(x, y, s = 1, fill = '#BBA8F2', line = '#7D68C2') {
+  return `<g transform="translate(${x} ${y}) scale(${s})">` +
+    `<path d="M5 2 V-20 Q12 -16 15 -10" fill="none" stroke="${line}" stroke-width="3" stroke-linecap="round"/>` +
+    `<ellipse cx="0" cy="3" rx="6.4" ry="5" fill="${fill}" stroke="${line}" stroke-width="2.4" transform="rotate(-20 0 3)"/>` +
+    dot(-2, 1.4, 1.4, .9) + `</g>`;
+}
 
 export function friendSVG(friendId, { expr = 'normal' } = {}) {
   const f = FRIEND_ART[friendId] || FRIEND_ART.snowball;
@@ -294,6 +400,110 @@ const BOTTLES = {
       bowAt(50, 52, '#FFB0C4', '#E0668A', .55) +
       sparkleAt(14, 40, 5, '#FFF6D8', '#E8C26A') + sparkleAt(88, 36, 4, '#fff', '#C9A7F5') + sparkleAt(90, 100, 3.5, '#FFF6D8', '#E8C26A') +
       `<path d="M25 74 Q25 64 31 59" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" opacity=".85"/>`;
+  },
+  // 蠟筆彩虹香：彩虹拱門瓶（瓶裡有彩虹紋、兩腳踩著小雲朵）＋蠟筆瓶蓋＋蠟筆塗鴉
+  p6(c) {
+    const g = uid('pg'), cp = uid('pc'), D = deep(c, .35);
+    const arch = `M24 110 Q18 110 18 104 L18 80 A32 32 0 0 1 82 80 L82 104 Q82 110 76 110 Z`;
+    const bands = ['#FF9EB5', '#FFC48A', '#FFE27A', c, '#8CCBEA', '#C9A7F5'];
+    const cloud = (x, flip) => `<g transform="translate(${x} 104) scale(${flip} 1)"><path d="M-12 8 Q-18 8 -17 2 Q-16 -4 -10 -3 Q-8 -10 0 -9 Q6 -12 10 -5 Q17 -5 16 2 Q16 8 10 8 Z" fill="#FFFFFF" stroke="#A9CFE6" stroke-width="2.4" ${SW}/>` +
+      `<path d="M-9 -1 Q-6 -5 -1 -5" fill="none" stroke="#DDEFFB" stroke-width="2" stroke-linecap="round"/></g>`;
+    return `<defs>${glassGrad(g, c)}<clipPath id="${cp}"><path d="${arch}"/></clipPath></defs>` + bottleShadow +
+      `<path d="${arch}" fill="url(#${g})"/>` +
+      `<g clip-path="url(#${cp})">` + bands.map((b, i) => `<path d="M${50 - 28 + i * 4.4} 96 A${28 - i * 4.4} ${28 - i * 4.4} 0 0 1 ${50 + 28 - i * 4.4} 96" fill="none" stroke="${b}" stroke-width="4.6" opacity=".72"/>`).join('') +
+      `<path d="M0 96 Q25 90 50 96 Q75 102 100 96 L100 120 L0 120 Z" fill="${c}" opacity=".62"/></g>` +
+      `<path d="${arch}" fill="none" stroke="${D}" stroke-width="4.4" ${SW}/>` +
+      cloud(24, 1) + cloud(76, -1) +
+      `<rect x="43" y="40" width="14" height="11" rx="3" fill="${light(c, .7)}" stroke="${D}" stroke-width="3"/>` +
+      // 蠟筆瓶蓋：尖尖的筆頭＋鋸齒紙套
+      `<path d="M41.5 25 L47 10 Q50 5.5 53 10 L58.5 25 Z" fill="${c}" stroke="${D}" stroke-width="2.8" ${SW}/>` +
+      `<path d="M44.6 17 Q50 19.5 55.4 17" fill="none" stroke="${D}" stroke-width="1.6" opacity=".55"/>` +
+      `<rect x="40" y="23" width="20" height="19" rx="3" fill="${c}" stroke="${D}" stroke-width="3"/>` +
+      `<path d="M40.5 27 L43 25 L45.5 27 L48 25 L50.5 27 L53 25 L55.5 27 L58 25 L59.5 26.5 L59.5 38.5 L57 40.5 L54.5 38.5 L52 40.5 L49.5 38.5 L47 40.5 L44.5 38.5 L42 40.5 L40.5 38.5 Z" fill="#FFFDF6" stroke="${D}" stroke-width="1.4" stroke-linejoin="round"/>` +
+      `<path d="M43 33 Q46 30 49 33 T55 33" fill="none" stroke="#FF9EB5" stroke-width="2" stroke-linecap="round"/>` +
+      shine(46, 15, 1.4, 3, 20, .8) +
+      // 蠟筆塗鴉
+      `<path d="M8 46 L13 40 L16 46 L21 40 L24 46" fill="none" stroke="#FF9EB5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>` +
+      `<path d="M76 28 Q82 22 86 28 Q90 34 94 28" fill="none" stroke="#8CCBEA" stroke-width="2.6" stroke-linecap="round"/>` +
+      `<path d="${star5(86, 46, 5, 2.3)}" fill="#FFE27A" stroke="#D9AE55" stroke-width="1.4" ${SW}/>` +
+      `<path d="M27 82 Q28 66 38 58" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" opacity=".85"/>` + dot(26, 90, 2, .85);
+  },
+  // 棉花糖樂園香：旋轉木馬瓶（條紋頂篷瓶蓋＋金色扭紋柱瓶頸＋圓筒瓶身裡的小木馬）＋棉花糖噴頭
+  p7(c) {
+    const g = uid('pg'), gd = uid('pd'), cp = uid('pc'), cc = uid('pc'), D = deep(c, .35);
+    const body = `M20 66 A30 11 0 0 1 80 66 L80 98 A30 11 0 0 1 20 98 Z`;
+    let canopy = `M50 12 L83 38`;
+    for (let i = 0; i < 5; i++) { const x0 = 83 - i * 13.2, x1 = x0 - 13.2; canopy += ` Q${(x0 + x1) / 2} 47 ${x1} 38`; }
+    canopy += ' Z';
+    let stripes = '';
+    for (let i = 0; i < 10; i++) stripes += `<path d="M50 12 L${14 + i * 7.2} 50 L${14 + (i + 1) * 7.2} 50 Z" fill="${i % 2 ? '#FFF6EE' : c}"/>`;
+    let bulbs = '';
+    for (let i = 1; i <= 7; i++) { const t = Math.PI * i / 8; bulbs += `<circle cx="${(50 - 30 * Math.cos(t)).toFixed(1)}" cy="${(66 + 11 * Math.sin(t)).toFixed(1)}" r="1.9" fill="#FFE27A" stroke="#E0A93A" stroke-width=".8"/>`; }
+    const horse = `<g transform="translate(48 91) scale(1.45)">` +
+      `<path d="M0 -24 V16" stroke="url(#${gd})" stroke-width="2.4"/>` +
+      `<path d="M-7 -1 Q-11 -2 -11 4" fill="none" stroke="#FF9EB5" stroke-width="2.2" stroke-linecap="round"/>` +
+      `<path d="M-3 3 L-6 9 M-1 3 L-2 9 M3 3 L5 9 M5 2 L8 7" stroke="#C9735A" stroke-width="2" stroke-linecap="round"/>` +
+      `<ellipse cx="0" cy="0" rx="7.6" ry="4.4" fill="#FFFFFF" stroke="#C9735A" stroke-width="1.5"/>` +
+      `<path d="M4 -1 L6.5 -9 Q8 -11.5 11 -10 L13 -7.5 Q13 -5.6 11 -5.8 L9 -5.6 L7.6 1 Z" fill="#FFFFFF" stroke="#C9735A" stroke-width="1.5" ${SW}/>` +
+      `<path d="M5.4 -6 Q4.6 -10 7.6 -11" fill="none" stroke="#FF9EB5" stroke-width="2" stroke-linecap="round"/><circle cx="9.6" cy="-8.4" r=".9" fill="${INK}"/>` +
+      `<path d="M-3 -4.2 Q0 -6 3 -4.2" fill="none" stroke="#FF9EB5" stroke-width="2.2" stroke-linecap="round"/></g>`;
+    return `<defs>${glassGrad(g, c)}${goldGrad(gd)}<clipPath id="${cp}"><path d="${body}"/></clipPath><clipPath id="${cc}"><path d="${canopy}"/></clipPath></defs>` + bottleShadow +
+      // 棉花糖噴頭：管子從頂篷後面接出來
+      `<path d="M66 32 Q80 30 85 40" fill="none" stroke="${D}" stroke-width="2.4" stroke-linecap="round"/>` +
+      `<path d="M83 58 L89 58 L86 72 Z" fill="#FFF3E0" stroke="#D9AE55" stroke-width="1.6" ${SW}/><path d="M84.4 62 L87.6 62 M85 66 L87 66" stroke="#FF9EB5" stroke-width="1.4"/>` +
+      `<g fill="#FFC6D8" stroke="#F08FB0" stroke-width="2" ${SW}><circle cx="81" cy="49" r="6.5"/><circle cx="91" cy="48" r="6.5"/><circle cx="86" cy="43" r="6.5"/><circle cx="86" cy="54" r="6"/></g>` +
+      `<g fill="#FFC6D8"><circle cx="81" cy="49" r="5"/><circle cx="91" cy="48" r="5"/><circle cx="86" cy="43" r="5"/><circle cx="86" cy="54" r="4.5"/><circle cx="86" cy="49" r="5"/></g>` +
+      dot(83, 43, 1.8, .9) + dot(89, 47, 1.2, .8) +
+      // 瓶身：圓筒（旋轉木馬的台座）
+      `<path d="${body}" fill="url(#${g})"/>` +
+      `<g clip-path="url(#${cp})"><path d="M10 90 Q30 85 50 90 Q70 95 90 90 L90 120 L10 120 Z" fill="${c}" opacity=".58"/>${horse}</g>` +
+      `<ellipse cx="50" cy="66" rx="30" ry="11" fill="${light(c, .55)}" opacity=".7"/>` +
+      `<path d="M20 98 A30 11 0 0 0 80 98" fill="none" stroke="url(#${gd})" stroke-width="3.4"/>` + bulbs +
+      `<path d="${body}" fill="none" stroke="${D}" stroke-width="4.2" ${SW}/><ellipse cx="50" cy="66" rx="30" ry="11" fill="none" stroke="${D}" stroke-width="2.6"/>` +
+      // 金色扭紋柱瓶頸
+      `<rect x="45" y="40" width="10" height="27" rx="3" fill="url(#${gd})" stroke="#C98F1F" stroke-width="2.2"/>` +
+      `<path d="M45.5 46 L54.5 42 M45.5 52 L54.5 48 M45.5 58 L54.5 54 M45.5 64 L54.5 60" stroke="#fff" stroke-width="1.6" opacity=".75"/>` +
+      // 條紋頂篷瓶蓋＋小旗子
+      `<path d="M50 12 L50 1.5" stroke="#C98F1F" stroke-width="1.6"/><path d="M50 1.5 L60 4.5 L50 7.5 Z" fill="#FF9EB5" stroke="#E0668A" stroke-width="1.2" ${SW}/>` +
+      `<g clip-path="url(#${cc})">${stripes}</g>` +
+      `<path d="${canopy}" fill="none" stroke="${D}" stroke-width="3" ${SW}/>` +
+      [83, 69.8, 56.6, 43.4, 30.2, 17].map(x => `<circle cx="${x}" cy="38.5" r="2" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1"/>`).join('') +
+      `<circle cx="50" cy="12" r="3.4" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.4"/>` +
+      shine(38, 26, 2.2, 6, 50, .55) +
+      `<path d="M26 76 Q26 70 30 66" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" opacity=".85"/>` +
+      sparkleAt(12, 52, 4.5, '#fff', '#F3A6CB');
+  },
+  // 黃金丁噹香（困難模式限定）：寶石切面金瓶＋小翅膀＋珍珠鍊＋金鈴鐺瓶蓋（綁粉紅蝴蝶結）＋金色光暈
+  p_gold(c) {
+    const g = uid('pg'), gd = uid('pd'), cp = uid('pc'), halo = uid('ph'), bell = uid('pb');
+    const gem = `M50 111 C29 105 17 92 18 76 C19 64 27 56 37 53 Q50 49 63 53 C73 56 81 64 82 76 C83 92 71 105 50 111 Z`;
+    const wing = `<path d="M23 70 C13 58 3 56 4 64 C4.5 68 8 70 11 70.5 C4 73 4 79 10 79.5 C7 84 12 87.5 20 83 Z" fill="#FFFFFF" stroke="#E2B84E" stroke-width="2.2" ${SW}/>` +
+      `<path d="M11 70.5 Q16 72 20 74 M10 79.5 Q15 79 20 78" fill="none" stroke="#EBCB7A" stroke-width="1.4" stroke-linecap="round"/>`;
+    let pearls = '';
+    for (let i = 0; i <= 8; i++) { const t = i / 8, x = 36 + 28 * t, y = 52 + 7 * Math.sin(Math.PI * t); pearls += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.1" fill="#FFFDF6" stroke="#E2C9A6" stroke-width=".9"/>`; }
+    return `<defs><radialGradient id="${halo}"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".85"/><stop offset=".6" stop-color="#FFE9A8" stop-opacity=".35"/><stop offset="1" stop-color="#FFE9A8" stop-opacity="0"/></radialGradient>` +
+      `<linearGradient id="${g}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="#FFF6D6"/><stop offset=".55" stop-color="#F6D77E"/><stop offset="1" stop-color="#DDAE45"/></linearGradient>` +
+      `<radialGradient id="${bell}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#FFF4C8"/><stop offset=".55" stop-color="#F2C866"/><stop offset="1" stop-color="#C99230"/></radialGradient>` +
+      `${goldGrad(gd)}<clipPath id="${cp}"><path d="${gem}"/></clipPath></defs>` +
+      `<circle cx="50" cy="70" r="50" fill="url(#${halo})"/>` + bottleShadow +
+      wing + `<g transform="translate(100 0) scale(-1 1)">${wing}</g>` +
+      `<path d="${gem}" fill="url(#${g})"/>` +
+      `<g clip-path="url(#${cp})"><path d="M10 92 Q30 86 50 92 Q70 98 90 92 L90 120 L10 120 Z" fill="${c}" opacity=".55"/>` +
+      `<path d="M50 60 L68 80 L50 104 L32 80 Z M50 60 L50 50 M68 80 L84 76 M32 80 L16 76 M50 104 L50 114 M50 60 L32 80 M37 53 L32 80 M63 53 L68 80 M24 96 L32 80 M76 96 L68 80" fill="none" stroke="#fff" stroke-width="1.4" opacity=".6"/></g>` +
+      `<path d="${gem}" fill="none" stroke="url(#${gd})" stroke-width="5.4" ${SW}/><path d="${gem}" fill="none" stroke="#B9861F" stroke-width="1.3" opacity=".7"/>` +
+      // 正中央的粉紅愛心寶石
+      `<path d="${heartPath(50, 80, 9)}" fill="#FFB0C4" stroke="#FFFFFF" stroke-width="2.6" ${SW}/><path d="${heartPath(50, 80, 9)}" fill="none" stroke="#E0668A" stroke-width="1" ${SW}/>` + dot(46.5, 76.5, 1.8, .9) +
+      `<path d="M27 74 Q27 63 35 58" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" opacity=".85"/>` +
+      // 瓶頸＋珍珠鍊
+      `<rect x="43" y="38" width="14" height="14" rx="3" fill="url(#${gd})" stroke="#B9861F" stroke-width="2.4"/>` + pearls +
+      // 金鈴鐺瓶蓋（丁噹熊的鈴鐺）
+      `<circle cx="50" cy="27" r="13.5" fill="url(#${bell})" stroke="#B9861F" stroke-width="2.6"/>` +
+      `<path d="M36.8 24.5 Q50 30 63.2 24.5" fill="none" stroke="#B9861F" stroke-width="2"/><path d="M37.4 21.8 Q50 27 62.6 21.8" fill="none" stroke="#FFF1C2" stroke-width="1.3" opacity=".9"/>` +
+      `<path d="M50 31.5 L50 38.5" stroke="#8E6414" stroke-width="2.2" stroke-linecap="round"/><circle cx="50" cy="31.5" r="2.6" fill="#8E6414"/>` +
+      shine(44, 20, 3.4, 2, -25, .9) +
+      bowAt(50, 13, '#FF9EB5', '#E0668A', .62) +
+      sparkleAt(12, 30, 6, '#FFF6D8', '#E8C26A') + sparkleAt(89, 22, 5, '#FFF6D8', '#E8C26A') + sparkleAt(91, 100, 4.5, '#fff', '#F3A6CB') +
+      sparkleAt(9, 98, 3.6, '#FFF6D8', '#E8C26A') + sparkleAt(80, 44, 3, '#fff', '#E8C26A');
   },
 };
 
@@ -561,7 +771,281 @@ const FURN = {
       `<rect x="9" y="62" width="34" height="8" rx="3.5" fill="#B9DBF1" stroke="#5E9CC4" stroke-width="2.8"/>` +
       `<path d="${heartPath(26, 78, 4)}" fill="#fff" opacity=".85"/>`;
   },
+
+  // =================== v1.2 第 5 章（熊熊上學去） ===================
+  // 字母拼圖地墊（220×70）：6×2 片彩色泡棉拼圖，用梯形透視鋪在地上，有凸耳、厚度和字母
+  f_rug_abc() {
+    const cols = [['#FFB0C4', '#E0668A'], ['#A8E6B8', '#4FA06A'], ['#FFD36E', '#D99A2B'], ['#BBA8F2', '#7D68C2'], ['#9CD3F0', '#4F95C2'], ['#FFB59A', '#D9734E']];
+    const N = 6, R = 2, TOP = 13, BOT = 55, TL = 28, TR = 192, BL = 7, BR = 213;
+    // 透視：u 左→右、v 上→下（0–1）
+    const P = (u, v) => [TL + (TR - TL) * u + ((BL + (BR - BL) * u) - (TL + (TR - TL) * u)) * v, TOP + (BOT - TOP) * v];
+    const f1 = n => n.toFixed(1);
+    const quad = (u0, v0, u1, v1) => { const a = P(u0, v0), b = P(u1, v0), c = P(u1, v1), d = P(u0, v1); return `M${f1(a[0])} ${f1(a[1])} L${f1(b[0])} ${f1(b[1])} L${f1(c[0])} ${f1(c[1])} L${f1(d[0])} ${f1(d[1])} Z`; };
+    const col = (r, c) => cols[(c + r * 3) % 6];
+    let thick = '', tiles = '', knobs = '', letters = '';
+    for (let r = 0; r < R; r++) for (let c = 0; c < N; c++) {
+      const u0 = c / N, u1 = (c + 1) / N, v0 = r / R, v1 = (r + 1) / R, [f, l] = col(r, c);
+      if (r === R - 1) { const d = P(u0, 1), e = P(u1, 1); thick += `<path d="M${f1(d[0])} ${f1(d[1])} L${f1(e[0])} ${f1(e[1])} L${f1(e[0])} ${f1(e[1] + 4.5)} L${f1(d[0])} ${f1(d[1] + 4.5)} Z" fill="${l}"/>`; }
+      tiles += `<path d="${quad(u0, v0, u1, v1)}" fill="${f}" stroke="${l}" stroke-width="2" stroke-linejoin="round"/>`;
+      const h0 = P(u0 + .06, v0 + .2), h1 = P(u0 + .3, v0 + .2);
+      tiles += `<path d="M${f1(h0[0])} ${f1(h0[1])} L${f1(h1[0])} ${f1(h1[1])}" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>`;
+      // 右邊凸耳（左右交錯）
+      if (c < N - 1) {
+        const out = (c + r) % 2 === 0, [ff, ll] = out ? [f, l] : col(r, c + 1), k = out ? 1 : -1, [mx, my] = P(u1, (v0 + v1) / 2);
+        knobs += `<path d="M${f1(mx)} ${f1(my - 2.6)} C${f1(mx + 2 * k)} ${f1(my - 5.4)} ${f1(mx + 7.5 * k)} ${f1(my - 4.6)} ${f1(mx + 7.5 * k)} ${f1(my)} C${f1(mx + 7.5 * k)} ${f1(my + 4.6)} ${f1(mx + 2 * k)} ${f1(my + 5.4)} ${f1(mx)} ${f1(my + 2.6)}" fill="${ff}" stroke="${ll}" stroke-width="1.6"/>`;
+      }
+      // 下面凸耳（第一排往下）
+      if (r === 0) {
+        const [mx, my] = P((u0 + u1) / 2, v1);
+        knobs += `<path d="M${f1(mx - 3.6)} ${f1(my)} C${f1(mx - 6.4)} ${f1(my + 1)} ${f1(mx - 5.4)} ${f1(my + 5)} ${f1(mx)} ${f1(my + 5)} C${f1(mx + 5.4)} ${f1(my + 5)} ${f1(mx + 6.4)} ${f1(my + 1)} ${f1(mx + 3.6)} ${f1(my)}" fill="${f}" stroke="${l}" stroke-width="1.6"/>`;
+      }
+      // 字母：壓扁＋依透視傾斜
+      const [cx, cy] = P((u0 + u1) / 2, (v0 + v1) / 2), [tx] = P((u0 + u1) / 2, 0), [bx] = P((u0 + u1) / 2, 1);
+      const sk = Math.atan((bx - tx) / (BOT - TOP)) * 180 / Math.PI;
+      letters += `<g transform="translate(${f1(cx)} ${f1(cy)}) skewX(${sk.toFixed(1)}) scale(1 .7)"><text x="0" y="6" text-anchor="middle" ${ROUND_FONT} font-size="17" fill="#FFFFFF" stroke="${l}" stroke-width="3.6" stroke-linejoin="round" paint-order="stroke">${String.fromCharCode(65 + r * N + c)}</text></g>`;
+    }
+    return `<ellipse cx="110" cy="61" rx="108" ry="7" fill="#8A6A5E" opacity=".14"/>` + thick + tiles + knobs + letters;
+  },
+  // 小書桌（110×84）：木頭桌面＋薄荷色抽屜、愛心椅背小椅子、打開的繪本、筆筒、小蘋果
+  f_table_desk() {
+    return `<ellipse cx="58" cy="82" rx="52" ry="3" fill="#8A6A5E" opacity=".18"/>` +
+      // 書桌
+      `<path d="M34 58 L32 81 M96 58 L98 81" stroke="#B98552" stroke-width="5" stroke-linecap="round"/>` +
+      `<rect x="34" y="42" width="64" height="18" rx="4" fill="#BFE8D2" stroke="#5FAF8A" stroke-width="2.4"/>` +
+      `<path d="M66 42 V60" stroke="#5FAF8A" stroke-width="1.8"/><rect x="45" y="49" width="10" height="3.6" rx="1.8" fill="#FFF8EE" stroke="#5FAF8A" stroke-width="1.2"/><rect x="77" y="49" width="10" height="3.6" rx="1.8" fill="#FFF8EE" stroke="#5FAF8A" stroke-width="1.2"/>` +
+      `<rect x="28" y="34" width="76" height="9" rx="3.5" fill="#F2D3A6" stroke="#B98552" stroke-width="2.6"/><path d="M33 37 H62" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>` +
+      // 打開的繪本
+      `<path d="M50 34 Q58 29 66 33 Q74 29 82 34 L82 36 L50 36 Z" fill="#FF9EB5" stroke="#E0668A" stroke-width="1.6" ${SW}/>` +
+      `<path d="M52 33 Q59 26 66 31 L66 34 Q59 30 52 34 Z" fill="#FFFDF6" stroke="#C9A77E" stroke-width="1.4" ${SW}/>` +
+      `<path d="M66 31 Q73 26 80 33 L80 34 Q73 30 66 34 Z" fill="#FFFDF6" stroke="#C9A77E" stroke-width="1.4" ${SW}/>` +
+      `<circle cx="59" cy="30.4" r="1.6" fill="#FFD36E"/><path d="M70 31 L74 29 L77 31" fill="none" stroke="#7DD39A" stroke-width="1.2" stroke-linecap="round"/>` +
+      // 筆筒＋鉛筆、蠟筆
+      `<path d="M89 14 L87 28 M93 12 L93 28 M97 15 L99 28" stroke-width="3.4" stroke-linecap="round" stroke="#FFD36E"/>` +
+      `<path d="M89 14 L89.6 10.4 M93 12 L93 8.4 M97 15 L96.4 11.4" stroke-width="2.4" stroke-linecap="round" stroke="#F7DDB8"/>` +
+      `<path d="M93 12 L93 13" stroke="#FF9EB5" stroke-width="3.4" stroke-linecap="round"/><path d="M97 15 L97.2 16" stroke="#8CCBEA" stroke-width="3.4" stroke-linecap="round"/>` +
+      `<rect x="86" y="21" width="15" height="14" rx="3" fill="#BBA8F2" stroke="#7D68C2" stroke-width="2"/><path d="${star5(93.5, 28, 3.2, 1.5)}" fill="#fff" opacity=".85"/>` +
+      // 小蘋果
+      `<path d="M40 25 Q34 23 34 29 Q34 35 40 34.4 Q46 35 46 29 Q46 23 40 25 Z" fill="#FF8FA8" stroke="#D9557E" stroke-width="1.8" ${SW}/>` +
+      `<path d="M40 25 Q40 22 42 20" fill="none" stroke="#9B6B47" stroke-width="1.6" stroke-linecap="round"/><path d="M42 22 Q46 19 47 23 Q44 24 42 22 Z" fill="#7DD39A"/>` + dot(37.5, 27.5, 1.2, .85) +
+      // 愛心椅背小椅子（在書桌前面）
+      `<path d="M8 60 L6 81 M28 60 L30 81" stroke="#E8A0B4" stroke-width="3.6" stroke-linecap="round"/>` +
+      `<path d="M10 58 V44 M26 58 V44" stroke="#E8A0B4" stroke-width="3.4" stroke-linecap="round"/>` +
+      `<path d="${heartPath(18, 40, 9.5)}" fill="#FFB0C4" stroke="#E0668A" stroke-width="2.4" ${SW}/>` + dot(14.5, 37.5, 1.6, .85) +
+      `<rect x="2" y="56" width="32" height="7" rx="3.5" fill="#FFB0C4" stroke="#E0668A" stroke-width="2.4"/>`;
+  },
+  // 地球儀吊燈（60×100）：金色經線環＋粉藍地球、薄荷綠陸地、愛心標著「家」
+  f_lamp_globe() {
+    const gl = uid('gl'), gs = uid('gs'), cp = uid('cp'), gd = uid('gd');
+    return `<defs>${glow(gl, '#FFE7B8')}${goldGrad(gd)}<radialGradient id="${gs}" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#EAF7FF"/><stop offset="1" stop-color="#9CD3F0"/></radialGradient><clipPath id="${cp}"><circle cx="30" cy="62" r="20"/></clipPath></defs>` +
+      `<circle cx="30" cy="64" r="30" fill="url(#${gl})"/>` +
+      `<rect x="24" y="0" width="12" height="4" rx="2" fill="#B98A64"/><path d="M30 3 L30 36" stroke="#8A6A5A" stroke-width="2.2"/>` +
+      `<circle cx="30" cy="62" r="20" fill="url(#${gs})" stroke="#4F95C2" stroke-width="3"/>` +
+      `<g clip-path="url(#${cp})" transform="rotate(-18 30 62)">` +
+      `<path d="M14 50 Q18 42 27 45 Q33 48 29 55 Q25 60 19 58 Q12 56 14 50 Z M33 62 Q40 56 47 61 Q50 70 43 76 Q36 79 34 72 Q31 67 33 62 Z M18 70 Q23 68 25 73 Q22 77 18 74 Z" fill="#A8E6B8" stroke="#4FA06A" stroke-width="1.4"/>` +
+      `<ellipse cx="30" cy="62" rx="20" ry="6" fill="none" stroke="#fff" stroke-width="1.2" opacity=".55"/><ellipse cx="30" cy="62" rx="8" ry="20" fill="none" stroke="#fff" stroke-width="1.2" opacity=".55"/></g>` +
+      heartAt(40, 66, 2.8, '#FF9EB5', '#E0668A', 1.2) +
+      shine(22, 53, 4.4, 2.4, -35, .75) +
+      // 金色經線環（半圈）
+      `<path d="M30 38 A24 24 0 0 1 30 86" fill="none" stroke="url(#${gd})" stroke-width="3.6" transform="rotate(-18 30 62)"/>` +
+      `<path d="M30 38 A24 24 0 0 1 30 86" fill="none" stroke="#C98F1F" stroke-width="1" opacity=".6" transform="rotate(-18 30 62)"/>` +
+      `<circle cx="30" cy="38" r="3.4" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.4"/>` +
+      `<circle cx="30" cy="86" r="3" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.4"/><path d="M28 89 L27 96 M30 89 L30 97 M32 89 L33 96" stroke="#FF9EB5" stroke-width="1.8" stroke-linecap="round"/>`;
+  },
+  // 小黑板（110×80）：木框＋粉筆綠板面，上面有 ABC、愛心、熊熊塗鴉、1+1=2，下面有粉筆槽和板擦
+  f_wall_chalkboard() {
+    const F = `font-family="'Arial Rounded MT Bold','Hiragino Maru Gothic ProN','Varela Round',sans-serif" font-weight="800"`;
+    return `<circle cx="55" cy="4" r="2.6" fill="#B98A64"/><path d="M55 4 L22 15 M55 4 L88 15" stroke="#B98A64" stroke-width="1.6"/>` +
+      `<rect x="9" y="12" width="92" height="58" rx="7" fill="#D9A877" stroke="#9B6B47" stroke-width="2.6"/>` +
+      `<rect x="15" y="18" width="80" height="45" rx="3.5" fill="#5F927E"/>` +
+      `<ellipse cx="66" cy="50" rx="18" ry="7" fill="#fff" opacity=".08"/>` +
+      `<text x="20" y="36" ${F} font-size="14" fill="#FFFFFF" opacity=".93">ABC</text>` +
+      `<path d="${heartPath(64, 30, 5)}" fill="none" stroke="#FFB0C4" stroke-width="1.8" ${SW}/>` +
+      `<text x="20" y="56" ${F} font-size="10" fill="#FFE27A" opacity=".95">1+1=2</text>` +
+      // 熊熊塗鴉
+      `<g fill="none" stroke="#FFFFFF" stroke-width="1.6" opacity=".92" stroke-linecap="round"><circle cx="78" cy="31" r="3"/><circle cx="90" cy="31" r="3"/><circle cx="84" cy="38" r="7"/></g>` +
+      `<circle cx="81.5" cy="37" r=".9" fill="#fff"/><circle cx="86.5" cy="37" r=".9" fill="#fff"/><path d="M82.6 40.4 Q84 41.6 85.4 40.4" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/>` +
+      `<path d="${star5(70, 52, 4, 1.8)}" fill="none" stroke="#A8E6B8" stroke-width="1.4" ${SW}/>` +
+      `<path d="M78 52 q3 -4 6 0 q3 4 6 0" fill="none" stroke="#9CD3F0" stroke-width="1.6" stroke-linecap="round"/>` +
+      shine(20, 22, 4, 1.4, -20, .25) +
+      // 粉筆槽＋粉筆＋板擦
+      `<rect x="11" y="63" width="88" height="6" rx="2.5" fill="#C99560" stroke="#9B6B47" stroke-width="1.8"/>` +
+      `<rect x="22" y="60.5" width="10" height="3.4" rx="1.5" fill="#FFFFFF"/><rect x="35" y="60.5" width="8" height="3.4" rx="1.5" fill="#FFB0C4"/><rect x="46" y="60.5" width="9" height="3.4" rx="1.5" fill="#FFE27A"/>` +
+      `<rect x="70" y="57" width="17" height="7" rx="2" fill="#BBA8F2" stroke="#7D68C2" stroke-width="1.6"/><rect x="70" y="61.4" width="17" height="2.6" fill="#F3EEFF"/>` +
+      bowAt(55, 13, '#FFB0C4', '#E0668A', .5);
+  },
+
+  // =================== v1.2 第 6 章（熊熊遊樂園） ===================
+  f_curtain_circus() { return circusCurtain(); },
+  // 旋轉木馬吊燈（60×100）：條紋頂篷＋燈泡、金色扭紋柱、兩隻小木馬、台座
+  f_lamp_carousel() {
+    const gl = uid('gl'), gd = uid('gd'), cc = uid('cp');
+    let canopy = `M30 15 L57 38`;
+    for (let i = 0; i < 4; i++) { const x0 = 57 - i * 13.5, x1 = x0 - 13.5; canopy += ` Q${(x0 + x1) / 2} 46 ${x1} 38`; }
+    canopy += ' Z';
+    let stripes = '';
+    for (let i = 0; i < 9; i++) stripes += `<path d="M30 15 L${1 + i * 6.6} 48 L${1 + (i + 1) * 6.6} 48 Z" fill="${i % 2 ? '#FFF6EE' : '#FFB0C4'}"/>`;
+    const pole = x => `<path d="M${x} 40 V82" stroke="url(#${gd})" stroke-width="2.6"/><path d="M${x} 44 V80" stroke="#fff" stroke-width="2.6" stroke-dasharray="1.6 4" opacity=".8"/>`;
+    return `<defs>${glow(gl, '#FFE2B8')}${goldGrad(gd)}<clipPath id="${cc}"><path d="${canopy}"/></clipPath></defs>` +
+      `<circle cx="30" cy="58" r="30" fill="url(#${gl})"/>` +
+      `<rect x="24" y="0" width="12" height="4" rx="2" fill="#B98A64"/><path d="M30 3 L30 13" stroke="#8A6A5A" stroke-width="2.2"/>` +
+      pole(10) + pole(30) + pole(50) +
+      lampHorse(10, 62, 1, '#FFFFFF', '#FF9EB5') + lampHorse(50, 58, -1, '#FFFFFF', '#9CD3F0') +
+      heartAt(30, 60, 4.4, '#FFD36E', '#D99A2B', 1.4) +
+      // 台座
+      `<path d="M4 82 Q30 90 56 82 L54 88 Q30 96 6 88 Z" fill="#BBA8F2" stroke="#7D68C2" stroke-width="2" ${SW}/>` +
+      `<ellipse cx="30" cy="82" rx="26" ry="5" fill="#FFE4EB" stroke="url(#${gd})" stroke-width="2.4"/>` +
+      [10, 20, 30, 40, 50].map((x, i) => `<circle cx="${x}" cy="${88.5 + (i === 2 ? 3.4 : i % 2 ? 2.4 : 0)}" r="1.5" fill="#FFE27A"/>`).join('') +
+      `<path d="M30 93 L30 98" stroke="url(#${gd})" stroke-width="2"/><circle cx="30" cy="98" r="1.8" fill="url(#${gd})"/>` +
+      // 條紋頂篷
+      `<g clip-path="url(#${cc})">${stripes}</g><path d="${canopy}" fill="none" stroke="#E0668A" stroke-width="2.4" ${SW}/>` +
+      [57, 43.5, 30, 16.5, 3].map(x => `<circle cx="${x}" cy="39" r="2" fill="#FFE27A" stroke="#E0A93A" stroke-width=".8"/>`).join('') +
+      `<circle cx="30" cy="14" r="3.2" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.2"/>` +
+      `<path d="M30 11 L30 5" stroke="#C98F1F" stroke-width="1.2"/><path d="M30 5 L37 7 L30 9 Z" fill="#A8E6B8" stroke="#4FA06A" stroke-width="1" ${SW}/>` +
+      shine(20, 28, 1.8, 5, 50, .55);
+  },
+  // 摩天輪掛畫（110×80）：粉紅畫框＋晚霞粉天空、摩天輪、雲朵、小山坡
+  f_wall_ferris() {
+    const gs = uid('gs'), cp = uid('cp');
+    const C = [55, 42], R = 20;
+    const cabs = ['#FFB0C4', '#A8E6B8', '#FFD36E', '#BBA8F2', '#9CD3F0', '#FFB59A', '#FFB0C4', '#A8E6B8'];
+    let spokes = '', cab = '';
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4 + .2, x = C[0] + Math.cos(a) * R, y = C[1] + Math.sin(a) * R;
+      spokes += `M${C[0]} ${C[1]} L${x.toFixed(1)} ${y.toFixed(1)} `;
+      cab += `<path d="M${(x - 3.6).toFixed(1)} ${(y + 1).toFixed(1)} H${(x + 3.6).toFixed(1)} L${(x + 3).toFixed(1)} ${(y + 6).toFixed(1)} Q${x.toFixed(1)} ${(y + 7.5).toFixed(1)} ${(x - 3).toFixed(1)} ${(y + 6).toFixed(1)} Z" fill="${cabs[i]}" stroke="${deep(cabs[i], .3)}" stroke-width="1.2" ${SW}/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.4" fill="#fff" stroke="#9B87D9" stroke-width=".8"/>`;
+    }
+    return `<defs><linearGradient id="${gs}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE0EC"/><stop offset="1" stop-color="#DDEFFB"/></linearGradient><clipPath id="${cp}"><rect x="15" y="18" width="80" height="52" rx="3"/></clipPath></defs>` +
+      `<circle cx="55" cy="4" r="2.6" fill="#B98A64"/><path d="M55 4 L24 14 M55 4 L86 14" stroke="#B98A64" stroke-width="1.6"/>` +
+      `<rect x="8" y="11" width="94" height="66" rx="8" fill="#FFC4D3" stroke="#E0668A" stroke-width="2.6"/>` +
+      `<rect x="15" y="18" width="80" height="52" rx="3" fill="url(#${gs})"/>` +
+      `<g clip-path="url(#${cp})">` +
+      `<path d="M22 32 q3 -6 9 -4 q4 -5 9 0 q5 0 4 5 h-20 q-4 0 -2 -1 Z" fill="#fff" opacity=".95"/><path d="M76 28 q3 -5 8 -3 q5 -2 6 3 q3 1 1 3 h-14 Z" fill="#fff" opacity=".9"/>` +
+      `<path d="M10 70 Q30 58 55 64 Q80 70 100 60 V80 H10 Z" fill="#BFE8C8" stroke="#7DBF92" stroke-width="1.4"/>` +
+      `<path d="M55 42 L44 66 M55 42 L66 66" stroke="#9B87D9" stroke-width="2.6" stroke-linecap="round"/>` +
+      `<circle cx="${C[0]}" cy="${C[1]}" r="${R}" fill="none" stroke="#BBA8F2" stroke-width="2.6"/><circle cx="${C[0]}" cy="${C[1]}" r="${R - 7}" fill="none" stroke="#D9CCFA" stroke-width="1.4"/>` +
+      `<path d="${spokes}" stroke="#BBA8F2" stroke-width="1.2"/>` + cab +
+      `<circle cx="${C[0]}" cy="${C[1]}" r="3.4" fill="#FFD36E" stroke="#D99A2B" stroke-width="1.2"/>` +
+      `<path d="M84 58 Q86 52 84 48" fill="none" stroke="#B98A64" stroke-width=".8"/><ellipse cx="84" cy="45" rx="3.4" ry="4" fill="#FF9EB5" stroke="#E0668A" stroke-width="1"/>` +
+      `<path d="M88 60 Q90 55 89 51" fill="none" stroke="#B98A64" stroke-width=".8"/><ellipse cx="89" cy="48" rx="3" ry="3.6" fill="#A8E6B8" stroke="#4FA06A" stroke-width="1"/>` +
+      `<path d="${star5(24, 46, 2.6, 1.2)}" fill="#FFF6D8"/><path d="${star5(32, 54, 1.8, .8)}" fill="#FFF6D8"/></g>` +
+      `<rect x="15" y="18" width="80" height="52" rx="3" fill="none" stroke="#F29AB4" stroke-width="1.4"/>` +
+      shine(14, 16, 4, 1.6, -30, .7) + bowAt(55, 11, '#FFFFFF', '#E0668A', .5);
+  },
+  // 氣球盆栽（52×92）：條紋花盆＋愛心、圓形、星星三顆氣球
+  f_plant_balloon() {
+    const cp = uid('cp');
+    const pot = `M10 64 H42 L38 87 Q26 91 14 87 Z`;
+    let st = '';
+    for (let x = 4; x < 50; x += 8) st += `<rect x="${x}" y="60" width="4" height="32" fill="#FFB0C4"/>`;
+    return `<defs><clipPath id="${cp}"><path d="${pot}"/></clipPath></defs><ellipse cx="26" cy="90" rx="18" ry="2.4" fill="#8A6A5E" opacity=".2"/>` +
+      // 線
+      `<path d="M24 60 Q18 48 15 36 M27 60 Q32 44 37 27 M28 60 Q34 54 34 48" fill="none" stroke="#B98A64" stroke-width="1.2"/>` +
+      // 愛心氣球
+      `<path d="${heartPath(14, 24, 11)}" fill="#FF9EB5" stroke="#E0668A" stroke-width="2.4" ${SW}/><path d="M12 34.5 L15 34.5 L13.5 37 Z" fill="#E0668A"/>` + shine(8.5, 19, 2.2, 3.6, 30, .75) +
+      // 圓形氣球
+      `<ellipse cx="37" cy="14" rx="11" ry="12.5" fill="#A8E6B8" stroke="#4FA06A" stroke-width="2.4"/><path d="M35.5 26.4 L38.5 26.4 L37 29 Z" fill="#4FA06A"/>` + shine(33, 8.5, 2.4, 4, 30, .75) +
+      // 星星氣球
+      `<path d="${star5(33, 42, 10, 4.8)}" fill="#FFD36E" stroke="#D99A2B" stroke-width="2.2" ${SW}/>` + dot(30, 39, 1.6, .85) +
+      // 葉子
+      `<path d="M26 64 Q16 54 10 58 Q14 66 26 64 Z M26 64 Q36 54 42 58 Q38 66 26 64 Z" fill="#8FD9A6" stroke="#4FA06A" stroke-width="1.8" ${SW}/>` +
+      // 條紋花盆
+      `<path d="${pot}" fill="#FFF6EE"/><g clip-path="url(#${cp})">${st}</g><path d="${pot}" fill="none" stroke="#E0668A" stroke-width="2.6" ${SW}/>` +
+      `<rect x="7" y="58" width="38" height="9" rx="3.5" fill="#BBA8F2" stroke="#7D68C2" stroke-width="2.6"/>` +
+      [14, 22, 30, 38].map(x => `<circle cx="${x}" cy="62.5" r="1.3" fill="#FFE27A"/>`).join('');
+  },
+
+  // =================== v1.2 金色限定（困難模式第 3 章） ===================
+  // 金色水晶吊燈（60×100）：金鍊、上下兩層彎臂＋燭台燈泡、水晶垂墜、珍珠串
+  f_lamp_chandelier() {
+    const gl = uid('gl'), gd = uid('gd'), cr = uid('cr');
+    const G = `url(#${gd})`, GL = '#B9861F';
+    let chain = '';
+    for (let y = 3; y < 22; y += 5) chain += `<ellipse cx="30" cy="${y + 2}" rx="${(y / 5) % 2 < 1 ? 2 : 1.3}" ry="2.7" fill="none" stroke="${GL}" stroke-width="2.4"/><ellipse cx="30" cy="${y + 2}" rx="${(y / 5) % 2 < 1 ? 2 : 1.3}" ry="2.7" fill="none" stroke="${G}" stroke-width="1.4"/>`;
+    const candle = (x, y) => `<path d="M${x - 5.6} ${y} Q${x} ${y + 5.6} ${x + 5.6} ${y} Z" fill="${G}" stroke="${GL}" stroke-width="1.8" ${SW}/>` +
+      `<rect x="${x - 2.4}" y="${y - 8}" width="4.8" height="8" rx="1.2" fill="#FFFDF6" stroke="#D9BE96" stroke-width="1.3"/>` +
+      `<path d="M${x} ${y - 15.5} Q${x + 3.6} ${y - 11} ${x} ${y - 8.4} Q${x - 3.6} ${y - 11} ${x} ${y - 15.5} Z" fill="#FFE59A" stroke="#EBA83A" stroke-width="1.3"/>`;
+    const drop = (x, y, s = 1) => `<path d="M${x} ${y} Q${x + 3.4 * s} ${y + 5 * s} ${x} ${y + 8 * s} Q${x - 3.4 * s} ${y + 5 * s} ${x} ${y} Z" fill="url(#${cr})" stroke="#7FB3DA" stroke-width="1.4"/>` + dot(x - .8 * s, y + 4.6 * s, .9 * s, .9);
+    return `<defs>${glow(gl, '#FFE29A')}${goldGrad(gd)}<linearGradient id="${cr}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".6" stop-color="#E4F4FF"/><stop offset="1" stop-color="#C9E4FA"/></linearGradient></defs>` +
+      `<circle cx="30" cy="58" r="30" fill="url(#${gl})"/>` +
+      `<rect x="24" y="0" width="12" height="4" rx="2" fill="${G}" stroke="${GL}" stroke-width="1"/>` + chain +
+      `<path d="M22 22 Q30 29 38 22 Z" fill="${G}" stroke="${GL}" stroke-width="2" ${SW}/>` +
+      // 下層彎臂（深金描邊＋金色）
+      `<path d="M30 60 Q14 67 8 54 M30 60 Q46 67 52 54" fill="none" stroke="${GL}" stroke-width="7" stroke-linecap="round"/>` +
+      `<path d="M30 60 Q14 67 8 54 M30 60 Q46 67 52 54" fill="none" stroke="${G}" stroke-width="4.4" stroke-linecap="round"/>` +
+      // 上層彎臂
+      `<path d="M30 46 Q19 51 17 40 M30 46 Q41 51 43 40" fill="none" stroke="${GL}" stroke-width="6" stroke-linecap="round"/>` +
+      `<path d="M30 46 Q19 51 17 40 M30 46 Q41 51 43 40" fill="none" stroke="${G}" stroke-width="3.6" stroke-linecap="round"/>` +
+      // 珍珠串
+      `<path d="M8 57 Q30 76 52 57" fill="none" stroke="#D9BE96" stroke-width="4.4" stroke-dasharray="0 4.6" stroke-linecap="round"/>` +
+      `<path d="M8 57 Q30 76 52 57" fill="none" stroke="#FFFDF6" stroke-width="3.2" stroke-dasharray="0 4.6" stroke-linecap="round"/>` +
+      `<path d="M17 43 Q30 55 43 43" fill="none" stroke="#D9BE96" stroke-width="3.6" stroke-dasharray="0 4" stroke-linecap="round"/>` +
+      `<path d="M17 43 Q30 55 43 43" fill="none" stroke="#FFFDF6" stroke-width="2.6" stroke-dasharray="0 4" stroke-linecap="round"/>` +
+      // 中柱＋小皇冠
+      `<path d="M30 26 V76" stroke="${GL}" stroke-width="6"/><path d="M30 26 V76" stroke="${G}" stroke-width="3.8"/>` +
+      `<path d="M20.5 36.5 L21.5 27.5 L26 31.5 L30 25.5 L34 31.5 L38.5 27.5 L39.5 36.5 Z" fill="${G}" stroke="${GL}" stroke-width="2" ${SW}/>` +
+      `<circle cx="22" cy="27.6" r="1.4" fill="#FFB0C4"/><circle cx="30" cy="25.6" r="1.6" fill="#FFB0C4"/><circle cx="38" cy="27.6" r="1.4" fill="#FFB0C4"/>` +
+      `<ellipse cx="30" cy="53" rx="7.6" ry="8.6" fill="${G}" stroke="${GL}" stroke-width="2.2"/>` +
+      `<path d="${heartPath(30, 53, 4)}" fill="#FFB0C4" stroke="#fff" stroke-width="1.1"/>` +
+      `<ellipse cx="30" cy="70" rx="5.6" ry="4" fill="${G}" stroke="${GL}" stroke-width="2"/>` +
+      candle(8, 54) + candle(52, 54) + candle(17, 40) + candle(43, 40) +
+      drop(8, 58, 1.25) + drop(52, 58, 1.25) + drop(17, 44, .95) + drop(43, 44, .95) + drop(19, 64, 1) + drop(41, 64, 1) +
+      `<path d="M30 74 V79" stroke="${GL}" stroke-width="2.2"/>` + drop(30, 79, 1.9) +
+      `<path d="${sparkle(5, 78, 4.8)}" fill="#FFF6D8" stroke="#E8C26A" stroke-width="1"/>` +
+      `<path d="${sparkle(55, 76, 3.8)}" fill="#FFF6D8" stroke="#E8C26A" stroke-width="1"/>` +
+      `<path d="${sparkle(49, 22, 3.2)}" fill="#fff" stroke="#E8C26A" stroke-width="1"/>` +
+      shine(28, 50, 1.4, 3, 0, .7);
+  },
 };
+
+/** 旋轉木馬吊燈上的小木馬（面向右；f=-1 面向左） */
+function lampHorse(x, y, f, c, mane) {
+  return `<g transform="translate(${x} ${y}) scale(${f} 1)">` +
+    `<path d="M-7 -1 Q-11 -2 -11 4" fill="none" stroke="${mane}" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M-3 3 L-6 8.5 M-1 3 L-1.6 9 M3 3 L5.5 8 M5 2 L8.6 5.4" stroke="#D98A6A" stroke-width="1.8" stroke-linecap="round"/>` +
+    `<ellipse cx="0" cy="0" rx="7.6" ry="4.4" fill="${c}" stroke="#D98A6A" stroke-width="1.4"/>` +
+    `<path d="M4 -1 L6.5 -9 Q8 -11.5 11 -10 L13 -7.5 Q13 -5.6 11 -5.8 L9 -5.6 L7.6 1 Z" fill="${c}" stroke="#D98A6A" stroke-width="1.4" ${SW}/>` +
+    `<path d="M5.4 -6 Q4.6 -10 7.6 -11" fill="none" stroke="${mane}" stroke-width="2" stroke-linecap="round"/><circle cx="9.6" cy="-8.4" r=".9" fill="${INK}"/>` +
+    `<path d="M-3.4 -4.2 Q0 -6.4 3.4 -4.2" fill="none" stroke="${mane}" stroke-width="2.4" stroke-linecap="round"/></g>`;
+}
+
+/** 條紋帳篷窗簾（138×130；窗戶在 (14,14)–(124,114)）：粉紅奶油直條紋、帳篷三角旗邊、金色繩結流蘇 */
+function circusCurtain() {
+  const gd = uid('gd'), cp = uid('cp');
+  const left = `M4 12 H44 C40 42 30 68 25 86 C31 102 39 116 42 127 H4 Z`;
+  const right = `M134 12 H94 C98 42 108 68 113 86 C107 102 99 116 96 127 H134 Z`;
+  // 條紋順著收攏的布：上緣均分 → 綁帶處收窄 → 下緣散開
+  let st = '';
+  const K = 5;
+  for (let i = 0; i < K; i++) {
+    const t = (i + .5) / K;
+    const xt = 4 + t * 40, xm = 15 + t * 15, xb = 4 + t * 38;
+    st += `M${xt.toFixed(1)} 10 C${xt.toFixed(1)} 40 ${xm.toFixed(1)} 66 ${xm.toFixed(1)} 86 C${xm.toFixed(1)} 104 ${xb.toFixed(1)} 116 ${xb.toFixed(1)} 130 `;
+  }
+  const stripes = `<path d="${st}" fill="none" stroke="#FFB0C4" stroke-width="4.6"/>`;
+  const flagsCol = [['#FFB0C4', '#E0668A'], ['#A8E6B8', '#4FA06A'], ['#FFD36E', '#D99A2B'], ['#BBA8F2', '#7D68C2']];
+  let flags = '';
+  const n = 8, w = 130 / n;
+  for (let i = 0; i < n; i++) {
+    const x0 = 4 + i * w, [f, l] = flagsCol[i % 4];
+    flags += `<path d="M${x0.toFixed(1)} 22 L${(x0 + w).toFixed(1)} 22 L${(x0 + w / 2).toFixed(1)} 38 Z" fill="${f}" stroke="${l}" stroke-width="1.8" ${SW}/>` +
+      `<circle cx="${(x0 + w / 2).toFixed(1)}" cy="39.5" r="2.2" fill="url(#${gd})" stroke="#C98F1F" stroke-width=".8"/>`;
+  }
+  const tie = (x, y) => `<path d="M${x - 14} ${y} Q${x} ${y + 6} ${x + 14} ${y}" fill="none" stroke="#C98F1F" stroke-width="5" stroke-linecap="round"/>` +
+    `<path d="M${x - 14} ${y} Q${x} ${y + 6} ${x + 14} ${y}" fill="none" stroke="#FFE08A" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="3 2"/>` +
+    `<circle cx="${x}" cy="${y + 3.4}" r="3.6" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.2"/>` +
+    `<path d="M${x - 3} ${y + 6} L${x - 4} ${y + 15} M${x - 1} ${y + 6} L${x - 1.4} ${y + 16} M${x + 1} ${y + 6} L${x + 1.4} ${y + 16} M${x + 3} ${y + 6} L${x + 4} ${y + 15}" stroke="#E2B84E" stroke-width="1.6" stroke-linecap="round"/>`;
+  return `<defs>${goldGrad(gd)}<clipPath id="${cp}"><path d="${left}"/></clipPath></defs>` +
+    `<path d="${left}" fill="#FFF7EC"/><g clip-path="url(#${cp})">${stripes}</g><path d="${left}" fill="none" stroke="#E0668A" stroke-width="2.4" ${SW}/>` +
+    `<g transform="translate(138 0) scale(-1 1)"><path d="${left}" fill="#FFF7EC"/><g clip-path="url(#${cp})">${stripes}</g><path d="${left}" fill="none" stroke="#E0668A" stroke-width="2.4" ${SW}/></g>` +
+    tie(25, 86) + tie(113, 86) +
+    // 帳篷頂邊：條紋帶＋三角旗＋小燈泡
+    `<rect x="4" y="9" width="130" height="14" fill="#FFF7EC" stroke="#E0668A" stroke-width="2.2"/>` +
+    Array.from({ length: 13 }, (_, i) => `<rect x="${4 + i * 10}" y="9" width="5" height="14" fill="#FFB0C4"/>`).join('') +
+    `<rect x="4" y="9" width="130" height="14" fill="none" stroke="#E0668A" stroke-width="2.2"/>` + flags +
+    Array.from({ length: 9 }, (_, i) => `<circle cx="${8 + i * 15.25}" cy="16" r="2" fill="#FFE27A" stroke="#E0A93A" stroke-width=".8"/>`).join('') +
+    `<rect x="2" y="5" width="134" height="5" rx="2.5" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.4"/>` +
+    `<circle cx="4" cy="7.5" r="4.4" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.4"/><circle cx="134" cy="7.5" r="4.4" fill="url(#${gd})" stroke="#C98F1F" stroke-width="1.4"/>`;
+}
 
 function curtain(kind) {
   const gh = uid('gh'), gd = uid('gd');
@@ -734,6 +1218,10 @@ const LAMP_LIGHT = {
   f_lamp_mushroom: { x: 180, y: 74, r: 128, c: '#FFC46A', core: '#FFE4A0' },
   f_lamp_moon:     { x: 178, y: 58, r: 120, c: '#FFD878', core: '#FFEDB8' },
   f_lamp_string:   { x: 180, y: 56, r: 112, c: '#FFCF8A', core: '#FFE9C0', dots: [[160, 31], [159.5, 59], [162, 89], [180, 27], [180, 53], [180, 79], [199, 35], [200, 59], [198, 81]] },
+  // v1.2
+  f_lamp_globe:      { x: 180, y: 62, r: 120, c: '#FFD49A', core: '#FFF0CC' },
+  f_lamp_carousel:   { x: 180, y: 58, r: 118, c: '#FFC79E', core: '#FFEACB', dots: [[207, 36], [193.5, 36], [180, 36], [166.5, 36], [153, 36], [162, 84], [180, 87], [198, 84]] },
+  f_lamp_chandelier: { x: 180, y: 54, r: 142, c: '#FFD27A', core: '#FFF2C4', dots: [[158, 40], [202, 40], [167, 26], [193, 26], [180, 50]] },
 };
 
 export function houseLightSVG(tod, opts = {}) {
@@ -811,9 +1299,11 @@ const CH_BG = {
   2: ['#FFEAF0', '#FFD6E2'], // 粉色裁縫店
   3: ['#FBE6C8', '#F2CF9E'], // 暖燈樹洞
   4: ['#FFD9C2', '#DDEFFB'], // 夕陽湖畔
+  5: ['#FFF6DC', '#DDF0E4'], // 午後陽光教室
+  6: ['#FFE6EE', '#E2E4FF'], // 彩燈遊樂園
 };
 const friendInfo = id => FRIENDS.find(f => f.id === id);
-const MEET_PROPS = { 1: ['salmon', 'straw'], 2: ['bow', 'knitHat'], 3: ['cocoaMug', 'pillow'], 4: ['airBalloon', 'camera'] };
+const MEET_PROPS = { 1: ['salmon', 'straw'], 2: ['bow', 'knitHat'], 3: ['cocoaMug', 'pillow'], 4: ['airBalloon', 'camera'], 5: ['book', 'crayon'], 6: ['cottonCandy', 'trumpet'] };
 
 function stickerShell(shape, inner, bg, tilt = 0) {
   const cp = uid('sc'), g = uid('sg');
@@ -860,21 +1350,97 @@ const LIKE_PROPS = {
     `<g transform="rotate(-10 40 70)"><rect x="18" y="48" width="44" height="40" rx="3" fill="#fff" stroke="#E8D9CC" stroke-width="2"/><rect x="22" y="52" width="36" height="26" fill="#DDEFFB"/><path d="M22 78 L34 62 L44 72 L50 66 L58 78 Z" fill="#8FD9A6"/></g>` +
     `<g transform="rotate(8 160 64)"><rect x="140" y="44" width="40" height="38" rx="3" fill="#fff" stroke="#E8D9CC" stroke-width="2"/><rect x="144" y="48" width="32" height="24" fill="#FFE4EB"/><circle cx="160" cy="60" r="7" fill="#FFD36E"/></g>` +
     `<g transform="translate(148 150) rotate(-8)"><rect x="-22" y="-14" width="44" height="30" rx="7" fill="#BBA8F2" stroke="#7D68C2" stroke-width="2.6"/><circle cx="0" cy="1" r="10" fill="#5A4D78" stroke="#7D68C2" stroke-width="2.6"/><circle cx="-3" cy="-2" r="2.6" fill="#fff"/></g>`,
+  // 黑糖：最會說故事 → 一疊繪本、打開的故事書、ABC 泡泡、小蘋果
+  heitang: () =>
+    [[16, 160, 60, '#A8E6B8', '#4FA06A'], [22, 148, 52, '#FFB0C4', '#E0668A'], [18, 136, 56, '#BBA8F2', '#7D68C2']].map(([x, y, w, c, l]) =>
+      `<rect x="${x}" y="${y}" width="${w}" height="12" rx="3" fill="${c}" stroke="${l}" stroke-width="2.4"/><rect x="${x + w - 9}" y="${y + 2.5}" width="6" height="7" rx="1" fill="#FFFDF6"/><path d="M${x + 6} ${y + 6} H${x + w - 16}" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>`).join('') +
+    appleMini(44, 126, 1.1) +
+    `<path d="M150 151 Q135 142 120 148 L120 181 Q135 175 150 183 Q165 175 180 181 L180 148 Q165 142 150 151 Z" fill="#FF9EB5" stroke="#E0668A" stroke-width="2.4" ${SW}/>` +
+    `<path d="M150 148 Q137 140 124 145 L124 176 Q137 171 150 178 Z" fill="#FFFDF6" stroke="#C9A77E" stroke-width="1.8" ${SW}/>` +
+    `<path d="M150 148 Q163 140 176 145 L176 176 Q163 171 150 178 Z" fill="#FFFDF6" stroke="#C9A77E" stroke-width="1.8" ${SW}/>` +
+    ['#FF9EB5', '#FFE27A', '#8FD9B6', '#9CD3F0'].map((c, i) => `<path d="M${128 + i * 2.4} 168 A${9.6 - i * 2.4} ${9.6 - i * 2.4} 0 0 1 ${147.2 - i * 2.4} 168" fill="none" stroke="${c}" stroke-width="2.4"/>`).join('') +
+    `<path d="M156 168 V160 L163 154 L170 160 V168 Z" fill="#FFE4EB" stroke="#E0668A" stroke-width="1.6" ${SW}/><rect x="161" y="162" width="4" height="6" fill="#FFB0C4"/><circle cx="168" cy="150" r="2.6" fill="#FFE27A"/>` +
+    letterBubble(34, 50, 'A', '#FFB0C4', '#E0668A') + letterBubble(166, 46, 'B', '#9CD3F0', '#4F95C2') + letterBubble(176, 82, 'C', '#A8E6B8', '#4FA06A'),
+  // 小楓：遊樂園樂隊 → 小鼓、小喇叭、音符、三角旗串
+  maple: () => {
+    const P0 = [24, 38], P1 = [100, 62], P2 = [176, 38];
+    const at = t => [0, 1].map(i => (1 - t) ** 2 * P0[i] + 2 * t * (1 - t) * P1[i] + t * t * P2[i]);
+    const cols = [['#FFB0C4', '#E0668A'], ['#FFE27A', '#D99A2B'], ['#A8E6B8', '#4FA06A'], ['#BBA8F2', '#7D68C2'], ['#9CD3F0', '#4F95C2']];
+    let flags = '';
+    for (let i = 0; i < 9; i++) {
+      const t = (i + .5) / 9, [a1, b1] = at(t - .04), [a2, b2] = at(t + .04), [mx, my] = at(t), [f, l] = cols[i % 5];
+      flags += `<path d="M${a1.toFixed(1)} ${b1.toFixed(1)} L${a2.toFixed(1)} ${b2.toFixed(1)} L${mx.toFixed(1)} ${(my + 15).toFixed(1)} Z" fill="${f}" stroke="${l}" stroke-width="1.6" ${SW}/>`;
+    }
+    return `<path d="M${P0} Q${P1} ${P2}" fill="none" stroke="#B98A64" stroke-width="1.6"/>` + flags +
+      drumMini(42, 160, 1.15) + trumpetMini(156, 158, 1.15, -18) +
+      noteAt(30, 104, 1, '#BBA8F2', '#7D68C2') + noteAt(170, 100, .9, '#FF9EB5', '#E0668A') + noteAt(180, 128, .7, '#9CD3F0', '#4F95C2');
+  },
 };
 
+// ---- v1.2 貼紙小道具（自己畫，不依賴棋盤圖示） ----
+const ROUND_FONT = `font-family="'Arial Rounded MT Bold','Hiragino Maru Gothic ProN','Varela Round',sans-serif" font-weight="800"`;
+function bookMini(x, y, s = 1, rot = 0, c = '#9CD3F0', l = '#4F95C2') {
+  return `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})">` +
+    `<rect x="-10" y="-12" width="24" height="28" rx="3" fill="#FFFDF6" stroke="#C9A77E" stroke-width="2"/>` +
+    `<rect x="-13" y="-15" width="24" height="28" rx="3" fill="${c}" stroke="${l}" stroke-width="2.4"/>` +
+    `<rect x="-13" y="-15" width="6" height="28" rx="2" fill="#FFB0C4" stroke="#E0668A" stroke-width="1.8"/>` +
+    `<path d="${star5(2, -4, 5.4, 2.5)}" fill="#FFE27A" stroke="#D99A2B" stroke-width="1.2" ${SW}/>` +
+    `<path d="M-3 6 H7" stroke="${l}" stroke-width="1.8" stroke-linecap="round"/></g>`;
+}
+function crayonMini(x, y, s = 1, rot = 0, c = '#FF9EB5', l = '#E0668A') {
+  return `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})">` +
+    `<path d="M10 -4.6 L18 -1.2 Q19.6 0 18 1.2 L10 4.6 Z" fill="${c}" stroke="${l}" stroke-width="1.8" ${SW}/>` +
+    `<rect x="-18" y="-5" width="29" height="10" rx="2.6" fill="${c}" stroke="${l}" stroke-width="2"/>` +
+    `<path d="M-11 -5 L-9 -3 L-7 -5 L-5 -3 L-3 -5 L-1 -3 L1 -5 L3 -3 L5 -5 V5 L3 3 L1 5 L-1 3 L-3 5 L-5 3 L-7 5 L-9 3 L-11 5 Z" fill="#FFFDF6" stroke="${l}" stroke-width="1" stroke-linejoin="round"/>` +
+    `<path d="M-15 -2.6 H-13" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".8"/></g>`;
+}
+function trumpetMini(x, y, s = 1, rot = 0) {
+  const G = '#F6CF66', L = '#C98F1F';
+  return `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})">` +
+    `<path d="M-12 2 Q-12 9 -5 9 H3 Q8 9 8 3" fill="none" stroke="${L}" stroke-width="4.4"/><path d="M-12 2 Q-12 9 -5 9 H3 Q8 9 8 3" fill="none" stroke="${G}" stroke-width="2"/>` +
+    `<rect x="-7" y="-9" width="3.4" height="8" rx="1.4" fill="${G}" stroke="${L}" stroke-width="1.2"/><rect x="-2" y="-9" width="3.4" height="8" rx="1.4" fill="${G}" stroke="${L}" stroke-width="1.2"/><rect x="3" y="-9" width="3.4" height="8" rx="1.4" fill="${G}" stroke="${L}" stroke-width="1.2"/>` +
+    `<rect x="-20" y="-2" width="28" height="4.4" rx="2" fill="${G}" stroke="${L}" stroke-width="1.6"/>` +
+    `<ellipse cx="-22" cy=".2" rx="1.8" ry="3.4" fill="${G}" stroke="${L}" stroke-width="1.2"/>` +
+    `<path d="M6 -2.4 L18 -10 Q21 .2 18 10.4 L6 2.8 Z" fill="${G}" stroke="${L}" stroke-width="1.8" ${SW}/>` +
+    `<ellipse cx="18.6" cy=".2" rx="2.8" ry="10" fill="#FFEDB3" stroke="${L}" stroke-width="1.6"/>` +
+    `<path d="M-14 -1 H2" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".8"/>` +
+    bowAt(-12, 4, '#FF9EB5', '#E0668A', .4) + `</g>`;
+}
+function drumMini(x, y, s = 1) {
+  return `<g transform="translate(${x} ${y}) scale(${s})">` +
+    `<path d="M-14 -24 L3 -9 M14 -26 L-2 -10" stroke="#C99A73" stroke-width="2.8" stroke-linecap="round"/><circle cx="-14" cy="-24" r="3" fill="#FF9EB5" stroke="#E0668A" stroke-width="1.4"/><circle cx="14" cy="-26" r="3" fill="#A8E6B8" stroke="#4FA06A" stroke-width="1.4"/>` +
+    `<path d="M-20 -6 V12 Q0 20 20 12 V-6" fill="#FFB0C4" stroke="#E0668A" stroke-width="2.4"/>` +
+    `<path d="M-17 -1 L-10 11 L-3 -1 L4 11 L11 -1 L17 9" fill="none" stroke="#FFF1C2" stroke-width="2" stroke-linejoin="round"/>` +
+    `<path d="M-20 11 Q0 19 20 11" fill="none" stroke="#F6CF66" stroke-width="3.2"/>` +
+    `<ellipse cx="0" cy="-6" rx="20" ry="6" fill="#FFFDF6" stroke="#E0668A" stroke-width="2.4"/><ellipse cx="0" cy="-6" rx="17" ry="4.4" fill="none" stroke="#F6CF66" stroke-width="1.6"/></g>`;
+}
+function popcornMini(x, y, s = 1, rot = 0) {
+  return `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})">` +
+    `<g fill="#FFF6D8" stroke="#E8C26A" stroke-width="1.6"><circle cx="-8" cy="-7" r="5"/><circle cx="-2" cy="-11" r="5"/><circle cx="5" cy="-9" r="5"/><circle cx="9" cy="-5" r="4.4"/><circle cx="1" cy="-5" r="4.6"/></g>` +
+    `<path d="M-12 -5 L12 -5 L8.6 16 L-8.6 16 Z" fill="#FFFDF6" stroke="#E0668A" stroke-width="2.2" ${SW}/>` +
+    `<path d="M-6.4 -5 L-4.6 16 M0 -5 V16 M6.4 -5 L4.6 16" stroke="#FF9EB5" stroke-width="3"/>` +
+    `<path d="M-12 -5 L12 -5 L8.6 16 L-8.6 16 Z" fill="none" stroke="#E0668A" stroke-width="2.2" ${SW}/>` +
+    `<path d="${star5(0, 5, 3.6, 1.6)}" fill="#FFE27A" stroke="#D99A2B" stroke-width=".8"/></g>`;
+}
+const appleMini = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})">` +
+  `<path d="M0 -5 Q-7 -8 -7 0 Q-7 8 0 7 Q7 8 7 0 Q7 -8 0 -5 Z" fill="#FF8FA8" stroke="#D9557E" stroke-width="2" ${SW}/>` +
+  `<path d="M0 -5 Q0 -9 2 -11" fill="none" stroke="#9B6B47" stroke-width="1.8" stroke-linecap="round"/><path d="M2 -8.6 Q7 -12 8 -7 Q4 -6 2 -8.6 Z" fill="#7DD39A" stroke="#4FA06A" stroke-width=".8"/>` + dot(-3, -2, 1.4, .85) + `</g>`;
+const letterBubble = (x, y, ch, c, l) => `<circle cx="${x}" cy="${y}" r="11" fill="${c}" stroke="${l}" stroke-width="2.2"/>` +
+  `<text x="${x}" y="${y + 5}" text-anchor="middle" ${ROUND_FONT} font-size="14" fill="#fff" stroke="${l}" stroke-width="2.6" stroke-linejoin="round" paint-order="stroke">${ch}</text>` + dot(x - 5, y - 5, 1.6, .8);
+
 function friendSticker(st) {
-  const f = friendInfo(st.friend), ch = f.chapter, bg = CH_BG[ch];
+  const f = friendInfo(st.friend) || FRIENDS[0], ch = f.chapter, bg = CH_BG[ch] || CH_BG[1];
   if (st.kind === 'meet') {
     const inner = `<ellipse cx="100" cy="178" rx="100" ry="30" fill="${bg[1]}" opacity=".9"/>` +
       place(friendSVG(f.id, { expr: 'happy' }), 18, 46, 94, 103) +
       place(bearSVG({ expr: 'happy' }), 98, 54, 80, 95) +
-      place(tileSVG(MEET_PROPS[ch][0]), 62, 146, 28, 28) + place(tileSVG(MEET_PROPS[ch][1]), 110, 148, 26, 26) +
+      place(tileSVG((MEET_PROPS[ch] || MEET_PROPS[1])[0]), 62, 146, 28, 28) + place(tileSVG((MEET_PROPS[ch] || MEET_PROPS[1])[1]), 110, 148, 26, 26) +
       heartAt(100, 44, 9) + sparkleAt(46, 46, 6) + sparkleAt(160, 50, 5, '#FFF6D8', '#E8C26A') +
       `<path d="M28 86 Q22 80 26 74 M174 90 Q180 84 176 78" fill="none" stroke="#E8A0B4" stroke-width="2.4" stroke-linecap="round"/>`;
     return stickerShell(circleShape, inner, bg);
   }
   if (st.kind === 'like') {
-    const inner = LIKE_PROPS[f.id]() + place(friendSVG(f.id, { expr: 'happy' }), 46, 34, 108, 119) +
+    const inner = (LIKE_PROPS[f.id] ? LIKE_PROPS[f.id]() : '') + place(friendSVG(f.id, { expr: 'happy' }), 46, 34, 108, 119) +
       sparkleAt(36, 40, 6) + sparkleAt(170, 110, 5, '#FFF6D8', '#E8C26A');
     return stickerShell(squareShape, inner, bg, -4);
   }
@@ -934,11 +1500,61 @@ const BEAR_STICKER = {
       `<path d="M70 158 H130 M72 169 H128" stroke="#B88355" stroke-width="1.8"/><path d="M84 148 V182 M100 148 V184 M116 148 V182" stroke="#B88355" stroke-width="1.4" opacity=".7"/>` +
       sparkleAt(30, 50, 6) + sparkleAt(172, 34, 5, '#FFF6D8', '#E8C26A');
   },
+  // 第 5 章：教室（黑板、書桌、繪本、蠟筆、蘋果）
+  5: () => `<rect x="46" y="30" width="108" height="58" rx="7" fill="#D9A877" stroke="#9B6B47" stroke-width="3"/>` +
+    `<rect x="52" y="36" width="96" height="46" rx="3.5" fill="#5F927E"/>` +
+    `<text x="58" y="58" ${ROUND_FONT} font-size="17" fill="#FFFFFF" opacity=".93">ABC</text>` +
+    `<text x="59" y="75" ${ROUND_FONT} font-size="10" fill="#FFE27A" opacity=".95">1+2=3</text>` +
+    `<path d="${heartPath(134, 48, 6)}" fill="none" stroke="#FFB0C4" stroke-width="2" ${SW}/>` +
+    `<path d="${star5(138, 70, 5, 2.2)}" fill="none" stroke="#A8E6B8" stroke-width="1.6" ${SW}/>` +
+    `<rect x="48" y="87" width="104" height="5" rx="2.2" fill="#C99560" stroke="#9B6B47" stroke-width="1.8"/>` +
+    `<rect x="58" y="84" width="11" height="3.6" rx="1.5" fill="#fff"/><rect x="72" y="84" width="8" height="3.6" rx="1.5" fill="#FFB0C4"/>` +
+    // 書桌桌面
+    `<path d="M0 154 Q100 148 200 154 V200 H0 Z" fill="#F2D3A6"/><path d="M0 154 Q100 148 200 154" fill="none" stroke="#B98552" stroke-width="3"/>` +
+    `<path d="M0 164 Q100 158 200 164" fill="none" stroke="#E2BE8E" stroke-width="1.6"/>` +
+    place(bearSVG({ expr: 'happy', outfit: { head: 'hat_schoolCap', clothes: 'cl_uniform' } }), 90, 62, 78, 91) +
+    place(dogSVG({ expr: 'happy', outfit: { dogHead: 'dog_gradCap', collar: 'col_plaid' } }), 40, 104, 58, 54) +
+    bookMini(70, 168, .9, -8, '#FFE27A', '#D99A2B') + crayonMini(112, 170, .85, -12, '#FF9EB5', '#E0668A') + crayonMini(132, 162, .75, 20, '#9CD3F0', '#4F95C2') +
+    appleMini(146, 160, .95) +
+    sparkleAt(36, 64, 5.5) + sparkleAt(166, 100, 5, '#FFF6D8', '#E8C26A'),
+  // 第 6 章：遊樂園（摩天輪、串燈、條紋帳篷、棉花糖、爆米花）
+  6: () => {
+    const C = [142, 70], R = 38;
+    const cabs = ['#FFB0C4', '#A8E6B8', '#FFD36E', '#BBA8F2', '#9CD3F0', '#FFB59A', '#FFB0C4', '#A8E6B8'];
+    let spokes = '', cab = '';
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4 + .3, x = C[0] + Math.cos(a) * R, y = C[1] + Math.sin(a) * R;
+      spokes += `M${C[0]} ${C[1]} L${x.toFixed(1)} ${y.toFixed(1)} `;
+      cab += `<path d="M${(x - 7).toFixed(1)} ${(y + 2).toFixed(1)} H${(x + 7).toFixed(1)} L${(x + 6).toFixed(1)} ${(y + 11).toFixed(1)} Q${x.toFixed(1)} ${(y + 14).toFixed(1)} ${(x - 6).toFixed(1)} ${(y + 11).toFixed(1)} Z" fill="${cabs[i]}" stroke="${deep(cabs[i], .3)}" stroke-width="1.8" ${SW}/>`;
+    }
+    let lights = '';
+    for (let i = 0; i <= 10; i++) { const t = i / 10, x = 10 + 180 * t, y = 26 + 116 * t * (1 - t); lights += `<circle cx="${x.toFixed(1)}" cy="${(y + 3).toFixed(1)}" r="3" fill="${['#FFE27A', '#FF9EB5', '#A8E6B8', '#9CD3F0'][i % 4]}" stroke="#fff" stroke-width="1"/>`; }
+    let tent = '';
+    for (let i = 0; i < 6; i++) tent += `<path d="M44 52 L${18 + i * 9} 112 L${27 + i * 9} 112 Z" fill="${i % 2 ? '#FFF7EC' : '#FFB0C4'}"/>`;
+    return `<circle cx="${C[0]}" cy="${C[1]}" r="${R}" fill="none" stroke="#C9B8EE" stroke-width="4"/><circle cx="${C[0]}" cy="${C[1]}" r="${R - 12}" fill="none" stroke="#DCD0FA" stroke-width="2"/>` +
+      `<path d="${spokes}" stroke="#C9B8EE" stroke-width="2"/>` + cab +
+      `<path d="M142 70 L122 150 M142 70 L162 150" stroke="#9B87D9" stroke-width="4" stroke-linecap="round"/><circle cx="142" cy="70" r="5.4" fill="#FFD36E" stroke="#D99A2B" stroke-width="1.6"/>` +
+      // 條紋帳篷
+      tent + `<path d="M44 52 L18 112 H72 Z" fill="none" stroke="#E0668A" stroke-width="2.4" ${SW}/><path d="M44 52 V44" stroke="#C98F1F" stroke-width="1.8"/><path d="M44 44 L54 47 L44 50 Z" fill="#A8E6B8" stroke="#4FA06A" stroke-width="1.2" ${SW}/>` +
+      `<path d="M36 112 Q44 96 52 112 Z" fill="#E0668A" opacity=".55"/>` +
+      // 串燈
+      `<path d="M10 26 Q100 84 190 26" fill="none" stroke="#B98A64" stroke-width="1.4"/>` + lights +
+      // 地面
+      `<path d="M0 150 Q100 138 200 150 V200 H0 Z" fill="#FFE4EB"/><path d="M0 150 Q100 138 200 150" fill="none" stroke="#F29AB4" stroke-width="2"/>` +
+      [[30, 170], [70, 182], [120, 176], [170, 168]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2" fill="#fff" opacity=".9"/>`).join('') +
+      place(bearSVG({ expr: 'happy', outfit: { head: 'hat_parkHeadband', hand: 'hd_cottonCandy' } }), 62, 50, 82, 96) +
+      place(dogSVG({ expr: 'lick', outfit: { dogHead: 'dog_partyHat', collar: 'col_bowtie' } }), 34, 108, 58, 54) +
+      popcornMini(142, 158, .95, 8) +
+      sparkleAt(170, 120, 5, '#FFF6D8', '#E8C26A') + sparkleAt(28, 84, 5);
+  },
 };
 
 export function stickerSVG(stickerId) {
   const st = STICKERS.find(s => s.id === stickerId) || STICKERS[0];
-  if (st.kind === 'bear') return svg(stickerShell(scallopShape(), BEAR_STICKER[st.chapter](), CH_BG[st.chapter]), '0 0 200 200');
+  if (st.kind === 'bear') {
+    const ch = BEAR_STICKER[st.chapter] ? st.chapter : 1;
+    return svg(stickerShell(scallopShape(), BEAR_STICKER[ch](), CH_BG[st.chapter] || CH_BG[ch]), '0 0 200 200');
+  }
   return svg(friendSticker(st), '0 0 200 200');
 }
 

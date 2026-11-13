@@ -97,13 +97,18 @@ export function mountDuo(container, { size = 'game', app = null, interactive = t
   let bearTimer = 0, dogTimer = 0, sayTimer = 0;
   let dogBusy = false;
 
+  // v1.2 金色限定的小閃光是 SVG 的 SMIL 動畫，CSS 的 prefers-reduced-motion 管不到，這裡手動暫停
+  const reduceMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  const calm = svgEl => { if (svgEl && reduceMotion()) try { svgEl.pauseAnimations?.(); } catch (e) { /* 不支援 */ } };
   function renderBear() {
     bearInner.innerHTML = bearSVG({ expr: bearExpr, outfit: bearOutfit, perfumeColor, live: true });
     bearSvg = bearInner.firstElementChild;
+    calm(bearSvg);
   }
   function renderDog() {
     dogInner.innerHTML = dogSVG({ expr: dogExpr, outfit: dogOutfit, live: true });
     dogSvg = dogInner.firstElementChild;
+    calm(dogSvg);
   }
   renderBear();
   renderDog();

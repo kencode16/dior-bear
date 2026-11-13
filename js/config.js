@@ -1,10 +1,11 @@
 // 全域設定（主代理擁有）。其他模組只讀不改；要加欄位請在回報中提出。
 export const GAME_NAME = 'DIOR熊漂';
-export const VERSION = '0.1.0';
+export const VERSION = '1.2.0';
 
 export const BOARD_MAX = 9;          // 棋盤最大 9×9，預設 8×8
 export const LEVELS_PER_CHAPTER = 10;
-export const TOTAL_LEVELS = 40;
+export const TOTAL_LEVELS = 60;          // v1.2：40 → 60（第 5、6 章）
+export const HARD_UNLOCK_LEVEL = 40;     // v1.2 困難模式：普通版第 40 關過關後開放
 
 // 特殊道具（無顏色，點一下或和相鄰任何物件交換即發動，各算一步）
 export const SPECIALS = {
@@ -20,9 +21,12 @@ export const OBSTACLES = {
   crate: { name: '木箱',     note: '佔一格不能動，旁邊消除或被道具打到少一層（1–3 層）' },
   yarn:  { name: '毛線團',   note: '纏住物件不能交換，旁邊消除就解開' },
   honey: { name: '蜂蜜黏黏', note: '黏住物件不能交換；這一步沒清到任何蜂蜜，就往旁邊擴散一格' },
+  // v1.2
+  paint: { name: '蠟筆塗色', note: '消除的那一串只要碰到有顏色的格子，整串都塗上顏色；目標是把盤面塗滿' },
+  gift:  { name: '驚喜禮物盒', note: '佔一格不能動，旁邊消除或被道具打到少一層（1–2 層）；打開會跑出一個特殊道具' },
 };
 
-// 四章。items 的順序就是關卡 colors 數量取用的順序（colors:5 取前 5 種）。
+// 六章（v1.2 加第 5、6 章，湊成食衣住行育樂）。items 的順序就是關卡 colors 數量取用的順序（colors:5 取前 5 種）。
 // hue 是給美術的色系提示，同一章 6 種顏色＋剪影都要明顯不同。
 export const CHAPTERS = [
   {
@@ -73,8 +77,50 @@ export const CHAPTERS = [
     ],
     obstacles: ['snow', 'crate', 'yarn', 'honey'], friend: 'bobo', perfume: 'p4',
   },
+  {
+    id: 5, name: '熊熊上學去', theme: '育', bg: '午後陽光教室',
+    items: [
+      { id: 'pencil',  name: '鉛筆',   hue: '蜂蜜黃' },
+      { id: 'book',    name: '繪本',   hue: '天空藍' },
+      { id: 'crayon',  name: '蠟筆',   hue: '粉紅' },
+      { id: 'globe',   name: '地球儀', hue: '薄荷綠' },
+      { id: 'palette', name: '調色盤', hue: '蜜桃橘' },
+      { id: 'puzzle',  name: '拼圖',   hue: '薰衣草紫' },
+    ],
+    obstacles: ['paint', 'snow', 'crate', 'yarn'], friend: 'heitang', perfume: 'p6',
+  },
+  {
+    id: 6, name: '熊熊遊樂園', theme: '樂', bg: '彩燈遊樂園',
+    items: [
+      { id: 'cottonCandy', name: '棉花糖',   hue: '粉紅' },
+      { id: 'iceCream',    name: '冰淇淋',   hue: '薄荷綠' },
+      { id: 'popcorn',     name: '爆米花',   hue: '蜂蜜黃' },
+      { id: 'trumpet',     name: '小喇叭',   hue: '蜜桃橘' },
+      { id: 'carousel',    name: '旋轉木馬', hue: '薰衣草紫' },
+      { id: 'ferrisWheel', name: '摩天輪',   hue: '天空藍' },
+    ],
+    obstacles: ['gift', 'paint', 'snow', 'crate', 'yarn', 'honey'], friend: 'maple', perfume: 'p7',
+  },
 ];
 
 export const ITEM_NAME = Object.fromEntries(CHAPTERS.flatMap(ch => ch.items.map(it => [it.id, it.name])));
 export const chapterOfLevel = id => Math.ceil(id / LEVELS_PER_CHAPTER);
 export const chapterById = id => CHAPTERS[id - 1];
+
+/**
+ * v1.2 困難模式：由普通關卡資料產生困難版關卡定義（遊戲畫面、模擬器、測試都用這一個，規則才會一致）。
+ * 關卡的 `hard` 欄位（E 用模擬器校正後寫入，例如 { moves, colors, stars }）會覆蓋預設；
+ * 沒寫 `hard` 時的預設：多一種顏色（最多 6）、步數 ×0.8。盤面、障礙、目標不變；困難版不顯示教學。
+ */
+export function hardLevelDef(level) {
+  if (!level) return level;
+  const { hard, ...base } = level;
+  return {
+    ...base,
+    colors: Math.min(6, (level.colors || 5) + 1),
+    moves: Math.max(5, Math.round(level.moves * 0.8)),
+    ...(hard || {}),
+    tutorial: null,
+    isHard: true,
+  };
+}

@@ -50,13 +50,20 @@ export const app = {
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.remove(), ms);
   },
-  levelById: id => LEVELS.find(l => l.id === id),
+  /** 關卡定義；opts.hard 為 true 時回傳困難版（v1.2，見 config.hardLevelDef） */
+  levelById(id, opts = {}) {
+    const l = LEVELS.find(l => l.id === id);
+    return opts.hard ? config.hardLevelDef(l) : l;
+  },
 };
 
 // iOS 要在使用者第一次觸控時解鎖聲音
 const unlock = () => { audio.unlock(); };
 window.addEventListener('pointerdown', unlock, { capture: true });
 window.addEventListener('touchend', unlock, { capture: true });
+// v1.2：iOS 認得的「使用者手勢」是 touchend／pointerup／click，三個都接上（unlock 可以重複呼叫）
+window.addEventListener('pointerup', unlock, { capture: true });
+window.addEventListener('click', unlock, { capture: true });
 
 // 設定同步到音效模組
 audio.setSfx(save.settings().sfx);
@@ -70,6 +77,7 @@ tod.mountSky(document.body, { fixed: true });
 const q = new URLSearchParams(location.search);
 const startScreen = q.get('screen') || 'home';
 const startParams = q.get('level') ? { levelId: Number(q.get('level')) } : {};
+if (q.has('hard')) startParams.hard = true;   // v1.2 開發用：?screen=level&level=3&hard
 app.go(startScreen, startParams);
 
 // PWA：網路優先的 service worker（開發時不會卡舊檔）

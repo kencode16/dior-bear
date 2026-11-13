@@ -1,20 +1,30 @@
-// 《DIOR熊漂》40 關資料（E 關卡子代理擁有）。格式見 架構.md「E 關卡」。
+// 《DIOR熊漂》60 關資料（E 關卡子代理擁有）。格式見 架構.md「E 關卡」與「v1.2」一節。
 //
 // 圖例（每一層都是字串陣列，一行一列，寬高要和 layout 一樣；沒寫的層代表全部是 0／沒有）：
 //   layout：'.' 一般格、'#' 洞（造型棋盤的空洞）
 //   snow  ：0–2，鋪在格子底下的雪層
 //   crate ：0–3，木箱層數（有木箱的格子沒有物件）
 //   lock  ：'y' 毛線團、'h' 蜂蜜黏黏（罩在物件上）
+//   paint ：v1.2 蠟筆塗色，'1' 開局就有顏色（起點只放在有物件的格子，不放洞、木箱、禮物盒）
+//   gift  ：v1.2 驚喜禮物盒 0–2 層（像木箱一樣佔一格；不和洞、木箱、雪、鎖、寶寶起點疊在一起）
 // babies：{ total 總共幾隻, onBoard 盤面上同時最多幾隻, start 開局位置 [[列,欄]...] }；exits：熊寶寶回家的欄位
-// goals ：collect 收集指定物件、clear 清光某種障礙（need 由引擎從盤面算）、baby 帶寶寶回家
+// goals ：collect 收集指定物件、clear 清光某種障礙（snow／crate／yarn／honey／gift，need 由引擎從盤面算；
+//         gift 是「打開幾個禮物盒」）、baby 帶寶寶回家、paint 把所有非洞格子塗上顏色（need 由引擎算）
 // stars ：[2 星分數, 3 星分數]，由 tools/sim.mjs 模擬算出；moves 也是模擬校正過的
+// hard  ：v1.2 困難模式 { moves, colors, stars }，交給 config.hardLevelDef(level) 覆蓋普通版的值（盤面、目標不變）；
+//         由 `tools/sim.mjs --hard --tune --write` 校正寫入，標頭下一行就是它
 //
 // 想自己改關卡：直接改字串就好。改完在專案根目錄跑（node 在 conda 環境 hermes3d 裡）：
-//   /opt/anaconda3/envs/hermes3d/bin/node tests/levels/test_levels.mjs        檢查格式、補位、建局
-//   /opt/anaconda3/envs/hermes3d/bin/node tools/sim.mjs --levels 7            看第 7 關的過關率與分數
-//   /opt/anaconda3/envs/hermes3d/bin/node tools/sim.mjs --levels 7 --tune --write   重新校正 moves 與 stars 並寫回
+//   /opt/anaconda3/envs/hermes3d/bin/node tests/levels/test_levels.mjs        檢查格式、補位、建局（普通＋困難）
+//   /opt/anaconda3/envs/hermes3d/bin/node tools/sim.mjs --levels 7 --workers 3            看第 7 關的過關率與分數
+//   /opt/anaconda3/envs/hermes3d/bin/node tools/sim.mjs --levels 47 --tune --write --workers 3   重新校正 moves 與 stars 並寫回
+//   /opt/anaconda3/envs/hermes3d/bin/node tools/sim.mjs --levels 7 --hard --tune --write --workers 3   重新校正困難版
+//   （第 1–40 關的普通版 moves、stars 是 v1.1 定案值，sim 預設不寫回；真的要改請加 --allow-old）
 // 2026-11-06 校正：電腦玩家「像真人」模式（前三好的步隨機挑），每關 300 局；
 // 目標過關率 第 1 章 ≥85%（前 3 關 ≈98%）、第 2 章 ≥70%、第 3 章 ≥60%、第 4 章 ≥50%，章內由易到難。
+// 2026-11-14 v1.2：新增第 41–60 關（第 5 章 0.66→0.48、第 6 章 0.62→0.44）；60 關困難版各 200 局校正
+// （目標 第 1 章 0.62、第 2 章 0.55、第 3 章 0.50、第 4 章 0.45、第 5 章 0.42、第 6 章 0.38，第 9、10 關再 −0.04）。
+// 困難版顏色：先試多一色；多一色在「不超過普通版步數」內達不到目標（差超過 0.08）時，顏色維持普通版、只減步數。
 
 const ALL8 = [0, 1, 2, 3, 4, 5, 6, 7];
 const ALL9 = [0, 1, 2, 3, 4, 5, 6, 7, 8];
@@ -23,14 +33,17 @@ const FULL8 = ['........', '........', '........', '........', '........', '....
 export const LEVELS = [
   // ================= 第 1 章 森林早餐（食）：蜂蜜罐、鮭魚、草莓、藍莓、橡果、青蘋果 =================
   { id: 1, chapter: 1, name: '第一口蜂蜜', moves: 15, colors: 4, stars: [10400, 14500], tutorial: 'swap',
+    hard: { moves: 15, colors: 5, stars: [5800, 7500] },
     layout: FULL8,
     goals: [{ type: 'collect', item: 'honey', need: 36 }] },
 
   { id: 2, chapter: 1, name: '鮭魚游過來', moves: 18, colors: 5, stars: [5500, 7100], tutorial: 'special',
+    hard: { moves: 12, colors: 5, stars: [4300, 5600] },
     layout: FULL8,
     goals: [{ type: 'collect', item: 'salmon', need: 24 }, { type: 'collect', item: 'honey', need: 18 }] },
 
   { id: 3, chapter: 1, name: '莓果小籃子', moves: 20, colors: 5, stars: [5900, 7400], tutorial: 'combo',
+    hard: { moves: 12, colors: 5, stars: [4400, 5600] },
     layout: [
       '#......#',
       '........',
@@ -44,6 +57,7 @@ export const LEVELS = [
     goals: [{ type: 'collect', item: 'straw', need: 24 }, { type: 'collect', item: 'blue', need: 24 }] },
 
   { id: 4, chapter: 1, name: '雪地早餐', moves: 17, colors: 5, stars: [6400, 8200], tutorial: 'snow',
+    hard: { moves: 17, colors: 6, stars: [4700, 5500] },
     layout: FULL8,
     snow: [
       '00000000',
@@ -58,11 +72,13 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'snow' }] },
 
   { id: 5, chapter: 1, name: '寶寶回家囉', moves: 26, colors: 5, stars: [9200, 10800], tutorial: 'baby',
+    hard: { moves: 26, colors: 6, stars: [6400, 7500] },
     layout: FULL8,
     babies: { total: 2, onBoard: 1, start: [[0, 3]] }, exits: ALL8,
     goals: [{ type: 'baby', need: 2 }] },
 
   { id: 6, chapter: 1, name: '木箱裡的橡果', moves: 17, colors: 5, stars: [5500, 7200], tutorial: 'crate',
+    hard: { moves: 12, colors: 5, stars: [4700, 6200] },
     layout: FULL8,
     crate: [
       '00000000',
@@ -77,6 +93,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'crate' }, { type: 'collect', item: 'acorn', need: 25 }] },
 
   { id: 7, chapter: 1, name: '愛心野餐墊', moves: 22, colors: 5, stars: [5700, 7000], tutorial: null,
+    hard: { moves: 16, colors: 5, stars: [4700, 5900] },
     layout: [
       '#...#...#',
       '.........',
@@ -100,6 +117,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'snow' }, { type: 'collect', item: 'straw', need: 26 }] },
 
   { id: 8, chapter: 1, name: '熊頭鬆餅', moves: 15, colors: 5, stars: [4800, 6100], tutorial: null,
+    hard: { moves: 11, colors: 5, stars: [4000, 5200] },
     layout: [
       '..#####..',
       '..#####..',
@@ -136,6 +154,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'crate' }, { type: 'clear', target: 'snow' }] },
 
   { id: 9, chapter: 1, name: '晨露小坡', moves: 35, colors: 5, stars: [12300, 14500], tutorial: null,
+    hard: { moves: 22, colors: 5, stars: [9300, 10700] },
     layout: FULL8,
     snow: [
       '00000000',
@@ -151,6 +170,7 @@ export const LEVELS = [
     goals: [{ type: 'baby', need: 2 }, { type: 'clear', target: 'snow' }] },
 
   { id: 10, chapter: 1, name: '雪球來吃早餐', moves: 24, colors: 5, stars: [5300, 6400], tutorial: null,
+    hard: { moves: 20, colors: 5, stars: [4700, 5600] },
     // 鮭魚形狀（雪球最愛吃鮭魚）
     layout: [
       '##...###.',
@@ -183,10 +203,12 @@ export const LEVELS = [
 
   // ================= 第 2 章 熊熊衣櫥（衣）：蝴蝶結、毛線帽、圍巾、小雨靴、吊帶褲、小圍裙 =================
   { id: 11, chapter: 2, name: '蝴蝶結小店開門', moves: 15, colors: 5, stars: [5400, 6800], tutorial: null,
+    hard: { moves: 12, colors: 5, stars: [5100, 6300] },
     layout: FULL8,
     goals: [{ type: 'collect', item: 'bow', need: 26 }, { type: 'collect', item: 'knitHat', need: 26 }] },
 
   { id: 12, chapter: 2, name: '毛線帽織好了', moves: 18, colors: 5, stars: [5700, 7000], tutorial: null,
+    hard: { moves: 14, colors: 5, stars: [5300, 6300] },
     layout: [
       '##....##',
       '#......#',
@@ -200,6 +222,7 @@ export const LEVELS = [
     goals: [{ type: 'collect', item: 'knitHat', need: 28 }, { type: 'collect', item: 'scarf', need: 28 }] },
 
   { id: 13, chapter: 2, name: '雨靴踩水坑', moves: 20, colors: 5, stars: [7200, 9000], tutorial: null,
+    hard: { moves: 15, colors: 5, stars: [5800, 7400] },
     layout: FULL8,
     snow: [
       '00000000',
@@ -214,6 +237,7 @@ export const LEVELS = [
     goals: [{ type: 'collect', item: 'boots', need: 24 }, { type: 'clear', target: 'snow' }] },
 
   { id: 14, chapter: 2, name: '毛線團滾來滾去', moves: 15, colors: 5, stars: [4900, 6600], tutorial: 'yarn',
+    hard: { moves: 12, colors: 5, stars: [4500, 6000] },
     layout: FULL8,
     lock: [
       'y......y',
@@ -228,6 +252,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'yarn' }, { type: 'collect', item: 'scarf', need: 22 }] },
 
   { id: 15, chapter: 2, name: '寶寶試穿新衣', moves: 28, colors: 5, stars: [10300, 12100], tutorial: null,
+    hard: { moves: 21, colors: 5, stars: [8400, 10000] },
     layout: FULL8,
     lock: [
       '........',
@@ -243,6 +268,7 @@ export const LEVELS = [
     goals: [{ type: 'baby', need: 3 }] },
 
   { id: 16, chapter: 2, name: '大大的蝴蝶結', moves: 25, colors: 5, stars: [4400, 5400], tutorial: null,
+    hard: { moves: 20, colors: 5, stars: [3700, 4700] },
     layout: [
       '..#####..',
       '...###...',
@@ -273,6 +299,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'yarn' }, { type: 'collect', item: 'bow', need: 26 }] },
 
   { id: 17, chapter: 2, name: '吊帶褲的口袋', moves: 16, colors: 5, stars: [4500, 5900], tutorial: null,
+    hard: { moves: 14, colors: 5, stars: [4400, 5700] },
     layout: FULL8,
     crate: [
       '00000000',
@@ -297,6 +324,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'crate' }, { type: 'clear', target: 'yarn' }, { type: 'collect', item: 'dungarees', need: 20 }] },
 
   { id: 18, chapter: 2, name: '芝麻的量尺', moves: 18, colors: 5, stars: [6700, 8300], tutorial: null,
+    hard: { moves: 15, colors: 5, stars: [6000, 7900] },
     layout: [
       '.......',
       '.......',
@@ -322,6 +350,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'snow' }, { type: 'collect', item: 'dungarees', need: 26 }] },
 
   { id: 19, chapter: 2, name: '衣櫥大掃除', moves: 25, colors: 6, stars: [5300, 6700], tutorial: null,
+    hard: { moves: 18, colors: 6, stars: [4300, 5300] },
     layout: FULL8,
     crate: [
       '00000000',
@@ -356,6 +385,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'yarn' }, { type: 'clear', target: 'snow' }] },
 
   { id: 20, chapter: 2, name: '芝麻的裁縫大秀', moves: 21, colors: 5, stars: [5400, 6600], tutorial: null,
+    hard: { moves: 18, colors: 5, stars: [5000, 6100] },
     // 洋裝形狀
     layout: [
       '##.###.##',
@@ -394,6 +424,7 @@ export const LEVELS = [
 
   // ================= 第 3 章 樹洞小屋（住）：枕頭、毛毯、小夜燈、熱可可杯、盆栽、鬧鐘 =================
   { id: 21, chapter: 3, name: '軟綿綿枕頭', moves: 17, colors: 5, stars: [5900, 7200], tutorial: null,
+    hard: { moves: 14, colors: 5, stars: [5500, 6700] },
     layout: [
       '#......#',
       '........',
@@ -407,6 +438,7 @@ export const LEVELS = [
     goals: [{ type: 'collect', item: 'pillow', need: 30 }, { type: 'collect', item: 'blanket', need: 30 }] },
 
   { id: 22, chapter: 3, name: '毛毯捲一捲', moves: 17, colors: 5, stars: [6500, 8400], tutorial: null,
+    hard: { moves: 14, colors: 5, stars: [5900, 7600] },
     layout: FULL8,
     snow: [
       '00000000',
@@ -421,6 +453,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'snow' }, { type: 'collect', item: 'blanket', need: 26 }] },
 
   { id: 23, chapter: 3, name: '小夜燈亮晶晶', moves: 18, colors: 5, stars: [6700, 8400], tutorial: null,
+    hard: { moves: 14, colors: 5, stars: [6500, 7400] },
     layout: FULL8,
     crate: [
       '00000000',
@@ -435,6 +468,7 @@ export const LEVELS = [
     goals: [{ type: 'collect', item: 'nightLamp', need: 32 }, { type: 'clear', target: 'crate' }] },
 
   { id: 24, chapter: 3, name: '蜂蜜黏黏', moves: 12, colors: 5, stars: [3800, 5100], tutorial: 'honey',
+    hard: { moves: 10, colors: 5, stars: [3200, 4600] },
     layout: FULL8,
     lock: [
       '........',
@@ -449,6 +483,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'honey' }] },
 
   { id: 25, chapter: 3, name: '寶寶要睡覺', moves: 26, colors: 5, stars: [10200, 11900], tutorial: null,
+    hard: { moves: 19, colors: 5, stars: [8500, 10000] },
     layout: FULL8,
     lock: [
       '........',
@@ -464,6 +499,7 @@ export const LEVELS = [
     goals: [{ type: 'baby', need: 3 }, { type: 'clear', target: 'honey' }] },
 
   { id: 26, chapter: 3, name: '熱可可冒泡泡', moves: 19, colors: 5, stars: [6000, 7200], tutorial: null,
+    hard: { moves: 16, colors: 5, stars: [5600, 6900] },
     // 杯子形狀（右邊是把手）
     layout: [
       '.......##',
@@ -488,6 +524,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'honey' }, { type: 'collect', item: 'cocoaMug', need: 36 }] },
 
   { id: 27, chapter: 3, name: '鬧鐘叮鈴鈴', moves: 20, colors: 5, stars: [6900, 8700], tutorial: null,
+    hard: { moves: 16, colors: 5, stars: [6000, 7600] },
     // 圓圓的鬧鐘，木箱是指針
     layout: [
       '###...###',
@@ -525,6 +562,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'crate' }, { type: 'clear', target: 'snow' }] },
 
   { id: 28, chapter: 3, name: '樹洞的小窗', moves: 18, colors: 5, stars: [5100, 6600], tutorial: null,
+    hard: { moves: 15, colors: 5, stars: [4400, 5900] },
     layout: [
       '##.....##',
       '#.......#',
@@ -550,6 +588,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'yarn' }, { type: 'clear', target: 'honey' }, { type: 'collect', item: 'plant', need: 20 }] },
 
   { id: 29, chapter: 3, name: '黏答答的廚房', moves: 24, colors: 5, stars: [9500, 11400], tutorial: null,
+    hard: { moves: 20, colors: 5, stars: [8500, 10400] },
     layout: FULL8,
     crate: [
       '00000000',
@@ -575,6 +614,7 @@ export const LEVELS = [
     goals: [{ type: 'baby', need: 3 }, { type: 'clear', target: 'honey' }] },
 
   { id: 30, chapter: 3, name: '可可的木工房', moves: 19, colors: 5, stars: [6100, 7800], tutorial: null,
+    hard: { moves: 17, colors: 5, stars: [5900, 7500] },
     // 小木屋形狀
     layout: [
       '####.####',
@@ -613,10 +653,12 @@ export const LEVELS = [
 
   // ================= 第 4 章 熊熊去旅行（行）：熱氣球、腳踏車、背包、小船、地圖、相機 =================
   { id: 31, chapter: 4, name: '打包行李', moves: 19, colors: 5, stars: [7500, 8900], tutorial: null,
+    hard: { moves: 16, colors: 5, stars: [7100, 8400] },
     layout: FULL8,
     goals: [{ type: 'collect', item: 'backpack', need: 38 }, { type: 'collect', item: 'map', need: 38 }] },
 
   { id: 32, chapter: 4, name: '腳踏車出發', moves: 19, colors: 5, stars: [6700, 8500], tutorial: null,
+    hard: { moves: 15, colors: 5, stars: [6000, 7900] },
     // 兩個洞是腳踏車輪軸，雪圈是輪子
     layout: [
       '.........',
@@ -641,6 +683,7 @@ export const LEVELS = [
     goals: [{ type: 'collect', item: 'bicycle', need: 30 }, { type: 'clear', target: 'snow' }] },
 
   { id: 33, chapter: 4, name: '湖上小船', moves: 20, colors: 5, stars: [4500, 5600], tutorial: null,
+    hard: { moves: 17, colors: 5, stars: [4200, 5100] },
     // 帆船形狀，雪是水波
     layout: [
       '####..###',
@@ -665,6 +708,7 @@ export const LEVELS = [
     goals: [{ type: 'collect', item: 'boat', need: 26 }, { type: 'clear', target: 'snow' }] },
 
   { id: 34, chapter: 4, name: '一路上的驚喜', moves: 15, colors: 5, stars: [5900, 7700], tutorial: null,
+    hard: { moves: 13, colors: 5, stars: [5700, 7200] },
     // 四種障礙全部出現
     layout: FULL8,
     crate: [
@@ -700,6 +744,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'snow' }, { type: 'clear', target: 'honey' }, { type: 'collect', item: 'boat', need: 20 }] },
 
   { id: 35, chapter: 4, name: '寶寶搭公車', moves: 22, colors: 5, stars: [9400, 11200], tutorial: null,
+    hard: { moves: 18, colors: 5, stars: [8400, 10000] },
     // 只有中間 4 欄是公車站（出口），兩邊底下被木箱擋住
     layout: FULL8,
     crate: [
@@ -716,6 +761,7 @@ export const LEVELS = [
     goals: [{ type: 'baby', need: 3 }] },
 
   { id: 36, chapter: 4, name: '飛上天的熱氣球', moves: 20, colors: 5, stars: [5600, 6800], tutorial: null,
+    hard: { moves: 18, colors: 5, stars: [5400, 6500] },
     // 熱氣球形狀，雪是雲
     layout: [
       '##.....##',
@@ -742,6 +788,7 @@ export const LEVELS = [
     goals: [{ type: 'collect', item: 'airBalloon', need: 34 }, { type: 'clear', target: 'snow' }] },
 
   { id: 37, chapter: 4, name: '地圖上的小路', moves: 23, colors: 6, stars: [3200, 4300], tutorial: null,
+    hard: { moves: 21, colors: 6, stars: [3100, 4100] },
     // 洞是湖泊，毛線團是地圖上的路線
     layout: [
       '.........',
@@ -768,6 +815,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'yarn' }, { type: 'collect', item: 'map', need: 18 }] },
 
   { id: 38, chapter: 4, name: '相機喀嚓', moves: 20, colors: 5, stars: [6300, 7700], tutorial: null,
+    hard: { moves: 18, colors: 5, stars: [6000, 7400] },
     // 相機形狀，雪圈是鏡頭
     layout: [
       '##..#####',
@@ -799,6 +847,7 @@ export const LEVELS = [
     goals: [{ type: 'clear', target: 'snow' }, { type: 'clear', target: 'crate' }] },
 
   { id: 39, chapter: 4, name: '波波的山頂', moves: 25, colors: 6, stars: [4900, 5500], tutorial: null,
+    hard: { moves: 22, colors: 6, stars: [4500, 5100] },
     // 山的形狀
     layout: [
       '####.####',
@@ -834,6 +883,7 @@ export const LEVELS = [
     goals: [{ type: 'baby', need: 2 }, { type: 'clear', target: 'honey' }] },
 
   { id: 40, chapter: 4, name: '丁噹熊的招牌香水', moves: 21, colors: 5, stars: [6900, 7900], tutorial: null,
+    hard: { moves: 19, colors: 5, stars: [6400, 7500] },
     // 香水瓶形狀：瓶蓋、瓶頸、瓶身；雪是瓶裡的香水
     layout: [
       '###...###',
@@ -880,4 +930,515 @@ export const LEVELS = [
       '011111110',
     ],
     goals: [{ type: 'clear', target: 'snow' }, { type: 'clear', target: 'yarn' }, { type: 'clear', target: 'honey' }] },
+  // ================= 第 5 章 熊熊上學去（育）：鉛筆、繪本、蠟筆、地球儀、調色盤、拼圖 =================
+  // 新機關「蠟筆塗色」（paint）：'1' 的格子開局就有顏色；一串消除只要碰到有顏色的格子，整串都上色；目標是塗滿所有非洞格子。
+  { id: 41, chapter: 5, name: '上學第一天', moves: 18, colors: 5, stars: [7000, 8300], tutorial: null,
+    hard: { moves: 15, colors: 5, stars: [6400, 7900] },
+    layout: FULL8,
+    goals: [{ type: 'collect', item: 'pencil', need: 36 }, { type: 'collect', item: 'book', need: 36 }] },
+
+  { id: 42, chapter: 5, name: '繪本翻翻看', moves: 17, colors: 5, stars: [7100, 8700], tutorial: null,
+    hard: { moves: 14, colors: 5, stars: [6700, 8200] },
+    // 雪是攤開的兩頁圖畫
+    layout: FULL8,
+    snow: [
+      '00000000',
+      '01100110',
+      '01100110',
+      '02200220',
+      '02200220',
+      '01100110',
+      '01100110',
+      '00000000',
+    ],
+    goals: [{ type: 'collect', item: 'book', need: 30 }, { type: 'clear', target: 'snow' }] },
+
+  { id: 43, chapter: 5, name: '轉轉地球儀', moves: 18, colors: 5, stars: [5500, 6600], tutorial: null,
+    hard: { moves: 15, colors: 5, stars: [4800, 6300] },
+    // 圓圓的地球儀，木箱是赤道上的小島
+    layout: [
+      '##....##',
+      '#......#',
+      '........',
+      '........',
+      '........',
+      '........',
+      '#......#',
+      '##....##',
+    ],
+    crate: [
+      '00000000',
+      '00000000',
+      '00000000',
+      '02000020',
+      '00011000',
+      '00000000',
+      '00000000',
+      '00000000',
+    ],
+    goals: [{ type: 'collect', item: 'globe', need: 34 }, { type: 'clear', target: 'crate' }] },
+
+  { id: 44, chapter: 5, name: '蠟筆塗塗看', moves: 21, colors: 5, stars: [6800, 7900], tutorial: 'paint',
+    hard: { moves: 18, colors: 5, stars: [6300, 7400] },
+    // 筆記本的一頁：中間先畫好一個十字，從十字往外塗滿
+    layout: [
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+    ],
+    paint: [
+      '0001000',
+      '0001000',
+      '0001000',
+      '1111111',
+      '0001000',
+      '0001000',
+      '0001000',
+    ],
+    goals: [{ type: 'paint' }] },
+
+  { id: 45, chapter: 5, name: '寶寶揹書包', moves: 21, colors: 5, stars: [8500, 10400], tutorial: null,
+    hard: { moves: 17, colors: 5, stars: [7600, 9200] },
+    layout: FULL8,
+    lock: [
+      '........',
+      '........',
+      '........',
+      '........',
+      '.y....y.',
+      '........',
+      '...yy...',
+      '........',
+    ],
+    babies: { total: 3, onBoard: 1, start: [[0, 3]] }, exits: ALL8,
+    goals: [{ type: 'baby', need: 3 }, { type: 'clear', target: 'yarn' }] },
+
+  { id: 46, chapter: 5, name: '彩虹調色盤', moves: 30, colors: 5, stars: [8400, 10100], tutorial: null,
+    hard: { moves: 26, colors: 5, stars: [7700, 9300] },
+    // 調色盤形狀（左上的洞是拇指孔），起點是盤上的六坨顏料（下半部比較少配對，顏料多放下面）
+    layout: [
+      '#......#',
+      '........',
+      '.#......',
+      '........',
+      '........',
+      '#......#',
+      '##....##',
+    ],
+    paint: [
+      '00000000',
+      '00100000',
+      '00000000',
+      '10000001',
+      '00000000',
+      '01000100',
+      '00010000',
+    ],
+    goals: [{ type: 'paint' }, { type: 'collect', item: 'palette', need: 18 }] },
+
+  { id: 47, chapter: 5, name: '拼圖拼一拼', moves: 28, colors: 5, stars: [8700, 10500], tutorial: null,
+    hard: { moves: 25, colors: 5, stars: [8000, 9600] },
+    // 拼圖片形狀（上下左右的凹口）；四個角、中間和下半部先塗好幾塊，毛線團纏住的拼圖要先解開才塗得上
+    layout: [
+      '...##...',
+      '........',
+      '........',
+      '#......#',
+      '#......#',
+      '........',
+      '........',
+      '...##...',
+    ],
+    lock: [
+      '........',
+      '..y..y..',
+      '........',
+      '........',
+      '........',
+      '........',
+      '..y..y..',
+      '........',
+    ],
+    paint: [
+      '10000001',
+      '00000000',
+      '00000000',
+      '00001000',
+      '00010000',
+      '10000000',
+      '00000100',
+      '10100001',
+    ],
+    goals: [{ type: 'paint' }, { type: 'clear', target: 'yarn' }] },
+
+  { id: 48, chapter: 5, name: '鉛筆削尖尖', moves: 30, colors: 5, stars: [8500, 9900], tutorial: null,
+    hard: { moves: 25, colors: 5, stars: [7500, 8800] },
+    // 橫躺的鉛筆：左邊雪是橡皮擦，右邊尖尖的筆芯先有顏色
+    layout: [
+      '.......##',
+      '........#',
+      '.........',
+      '.........',
+      '........#',
+      '.......##',
+    ],
+    snow: [
+      '110000000',
+      '110000000',
+      '110000000',
+      '110000000',
+      '110000000',
+      '110000000',
+    ],
+    paint: [
+      '000100000',
+      '000000000',
+      '000000001',
+      '000000001',
+      '000000000',
+      '000001000',
+    ],
+    goals: [{ type: 'paint' }, { type: 'clear', target: 'snow' }] },
+
+  { id: 49, chapter: 5, name: '小考一百分', moves: 27, colors: 5, stars: [11600, 13300], tutorial: null,
+    hard: { moves: 25, colors: 5, stars: [11100, 12800] },
+    // 稍難：起點只有四個角落附近，中間是兩層雪
+    layout: [
+      '#......#',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '#......#',
+    ],
+    snow: [
+      '00000000',
+      '00000000',
+      '00111100',
+      '00122100',
+      '00122100',
+      '00111100',
+      '00000000',
+      '00000000',
+    ],
+    paint: [
+      '00000000',
+      '01000010',
+      '00000000',
+      '00000000',
+      '00000000',
+      '00000000',
+      '01000010',
+      '00000000',
+    ],
+    goals: [{ type: 'paint' }, { type: 'clear', target: 'snow' }] },
+
+  { id: 50, chapter: 5, name: '黑糖老師的繪本', moves: 27, colors: 5, stars: [9000, 10500], tutorial: null,
+    hard: { moves: 25, colors: 5, stars: [8500, 9900] },
+    // 章節大關：攤開的繪本（上緣中間凹下去、下緣兩角翹起來），木箱是書脊，起點是兩頁上的小插圖
+    layout: [
+      '...###...',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '##.....##',
+    ],
+    crate: [
+      '000000000',
+      '000000000',
+      '000010000',
+      '000010000',
+      '000010000',
+      '000000000',
+      '000000000',
+    ],
+    paint: [
+      '000000000',
+      '010000010',
+      '000000000',
+      '001000100',
+      '000000000',
+      '010000010',
+      '000101000',
+    ],
+    goals: [{ type: 'paint' }, { type: 'clear', target: 'crate' }] },
+
+  // ================= 第 6 章 熊熊遊樂園（樂）：棉花糖、冰淇淋、爆米花、小喇叭、旋轉木馬、摩天輪 =================
+  // 新機關「驚喜禮物盒」（gift）：1–2 層，像木箱一樣佔一格；旁邊消除或被道具打到少一層，打開會跑出一個特殊道具。
+  { id: 51, chapter: 6, name: '棉花糖雲朵', moves: 18, colors: 5, stars: [5200, 6400], tutorial: null,
+    hard: { moves: 16, colors: 5, stars: [5100, 5900] },
+    // 蓬蓬的雲朵形狀
+    layout: [
+      '##..#..##',
+      '#.......#',
+      '.........',
+      '.........',
+      '.........',
+      '#.......#',
+      '##.....##',
+    ],
+    goals: [{ type: 'collect', item: 'cottonCandy', need: 30 }, { type: 'collect', item: 'iceCream', need: 30 }] },
+
+  { id: 52, chapter: 6, name: '冰淇淋甜筒', moves: 17, colors: 5, stars: [4200, 5200], tutorial: null,
+    hard: { moves: 15, colors: 5, stars: [3900, 4900] },
+    // 上面圓圓的冰淇淋球、下面尖尖的甜筒；雪是彩色糖粒
+    layout: [
+      '##....##',
+      '#......#',
+      '........',
+      '........',
+      '#......#',
+      '##....##',
+      '##....##',
+      '###..###',
+      '###..###',
+    ],
+    snow: [
+      '00101000',
+      '01000110',
+      '10010001',
+      '00100100',
+      '00000000',
+      '00000000',
+      '00000000',
+      '00000000',
+      '00000000',
+    ],
+    goals: [{ type: 'collect', item: 'iceCream', need: 22 }, { type: 'clear', target: 'snow' }] },
+
+  { id: 53, chapter: 6, name: '爆米花蹦蹦', moves: 15, colors: 5, stars: [5900, 7800], tutorial: null,
+    hard: { moves: 13, colors: 5, stars: [5700, 7600] },
+    // 爆米花桶底黏著焦糖（蜂蜜黏黏）
+    layout: FULL8,
+    lock: [
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '..h..h..',
+      '.hh..hh.',
+      '........',
+    ],
+    goals: [{ type: 'collect', item: 'popcorn', need: 34 }, { type: 'clear', target: 'honey' }] },
+
+  { id: 54, chapter: 6, name: '驚喜禮物盒', moves: 12, colors: 5, stars: [5800, 7300], tutorial: 'gift',
+    hard: { moves: 12, colors: 6, stars: [4600, 5400] },
+    layout: FULL8,
+    // 四個角落是兩層的大禮物（只有兩個鄰格，要用道具幫忙），中間四個一層
+    gift: [
+      '20000002',
+      '00000000',
+      '00100100',
+      '00000000',
+      '00000000',
+      '00100100',
+      '00000000',
+      '20000002',
+    ],
+    goals: [{ type: 'clear', target: 'gift' }] },
+
+  { id: 55, chapter: 6, name: '寶寶坐木馬', moves: 20, colors: 5, stars: [9800, 11700], tutorial: null,
+    hard: { moves: 17, colors: 5, stars: [9000, 10700] },
+    layout: FULL8,
+    gift: [
+      '00000000',
+      '00000000',
+      '00000000',
+      '01000010',
+      '00000000',
+      '00011000',
+      '00000000',
+      '00000000',
+    ],
+    babies: { total: 4, onBoard: 1, start: [[0, 3]] }, exits: ALL8,
+    goals: [{ type: 'baby', need: 4 }, { type: 'clear', target: 'gift' }] },
+
+  { id: 56, chapter: 6, name: '小喇叭嘟嘟', moves: 29, colors: 5, stars: [6400, 7300], tutorial: null,
+    hard: { moves: 24, colors: 5, stars: [5800, 6500] },
+    // 小喇叭形狀：左邊是吹口和管子、右邊是張開的喇叭口；吹口和喇叭口的兩個角先有顏色
+    layout: [
+      '#####...',
+      '####....',
+      '........',
+      '........',
+      '........',
+      '####....',
+      '#####...',
+    ],
+    gift: [
+      '00000000',
+      '00000000',
+      '00100000',
+      '00000100',
+      '00100000',
+      '00000000',
+      '00000000',
+    ],
+    paint: [
+      '00000001',
+      '00000000',
+      '00000000',
+      '10000000',
+      '00000000',
+      '00000000',
+      '00000001',
+    ],
+    goals: [{ type: 'paint' }, { type: 'clear', target: 'gift' }] },
+
+  { id: 57, chapter: 6, name: '旋轉木馬轉圈圈', moves: 16, colors: 5, stars: [7900, 9500], tutorial: null,
+    hard: { moves: 14, colors: 5, stars: [7900, 9100] },
+    // 圓形的旋轉木馬：禮物盒是一圈小木馬，中間的毛線團是柱子
+    layout: [
+      '###...###',
+      '#.......#',
+      '#.......#',
+      '.........',
+      '.........',
+      '.........',
+      '#.......#',
+      '#.......#',
+      '###...###',
+    ],
+    gift: [
+      '000000000',
+      '002000200',
+      '000000000',
+      '000000000',
+      '020000020',
+      '000000000',
+      '000000000',
+      '002000200',
+      '000000000',
+    ],
+    lock: [
+      '.........',
+      '.........',
+      '....y....',
+      '....y....',
+      '....y....',
+      '....y....',
+      '....y....',
+      '.........',
+      '.........',
+    ],
+    goals: [{ type: 'clear', target: 'gift' }, { type: 'clear', target: 'yarn' }, { type: 'collect', item: 'carousel', need: 44 }] },
+
+  { id: 58, chapter: 6, name: '氣球大遊行', moves: 15, colors: 5, stars: [7300, 8900], tutorial: null,
+    hard: { moves: 12, colors: 5, stars: [6500, 8200] },
+    layout: FULL8,
+    // 禮物盒是一顆顆氣球，底下的蜂蜜是遊行花車上的焦糖
+    gift: [
+      '00000000',
+      '02000020',
+      '00000000',
+      '00011000',
+      '00000000',
+      '02000020',
+      '00000000',
+      '00000000',
+    ],
+    lock: [
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '.hh..hh.',
+      'h......h',
+    ],
+    goals: [{ type: 'clear', target: 'gift' }, { type: 'clear', target: 'honey' }, { type: 'collect', item: 'trumpet', need: 40 }] },
+
+  { id: 59, chapter: 6, name: '煙火晚會', moves: 23, colors: 5, stars: [10300, 12100], tutorial: null,
+    hard: { moves: 21, colors: 5, stars: [10000, 11700] },
+    // 稍難：四個角落的煙火先點亮，把整片夜空塗滿；禮物盒裡藏著煙火（特殊道具）
+    layout: [
+      '#......#',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '#......#',
+    ],
+    gift: [
+      '00000000',
+      '00000000',
+      '00200100',
+      '00000000',
+      '00000000',
+      '00100200',
+      '00000000',
+      '00000000',
+    ],
+    paint: [
+      '01000000',
+      '00000000',
+      '00000000',
+      '00000001',
+      '10000000',
+      '00000000',
+      '00000000',
+      '00000010',
+    ],
+    goals: [{ type: 'paint' }, { type: 'clear', target: 'gift' }] },
+
+  { id: 60, chapter: 6, name: '小楓的摩天輪', moves: 17, colors: 5, stars: [8700, 10300], tutorial: null,
+    hard: { moves: 16, colors: 5, stars: [8500, 10300] },
+    // 章節大關：圓圓的摩天輪＋底下的支架；禮物盒是一圈車廂，雪是輪輻，毛線團是中間的輪軸
+    layout: [
+      '###...###',
+      '#.......#',
+      '#.......#',
+      '.........',
+      '.........',
+      '.........',
+      '#.......#',
+      '##.....##',
+      '#..###..#',
+    ],
+    gift: [
+      '000000000',
+      '002000200',
+      '000000000',
+      '200000002',
+      '000000000',
+      '200000002',
+      '000000000',
+      '002000200',
+      '000000000',
+    ],
+    snow: [
+      '000000000',
+      '000000000',
+      '001020100',
+      '000121000',
+      '022202220',
+      '000121000',
+      '001020100',
+      '000000000',
+      '000000000',
+    ],
+    lock: [
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '....y....',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+    ],
+    goals: [{ type: 'clear', target: 'gift' }, { type: 'clear', target: 'snow' }, { type: 'collect', item: 'cottonCandy', need: 45 }] },
 ];

@@ -99,6 +99,38 @@
 .g-pout{display:block;width:110px;margin:-6px auto 0}
 .g-pout svg{width:100%;height:auto;display:block}
 
+/* ---------- v1.2 困難模式、教學圖示、金色限定 ---------- */
+.g-level{position:relative}
+.g-hard{position:absolute;top:-9px;right:-12px;z-index:2;font-style:normal;font-size:11px;font-weight:800;line-height:1;color:#7A4A00;letter-spacing:1px;padding:4px 7px 3px;border-radius:999px;
+  background:linear-gradient(135deg,#FFF3B8 0%,#F7CF5A 45%,#E3A92B 70%,#FFE58A 100%);border:1.5px solid #C98F1F;box-shadow:0 2px 0 #B07A12,0 0 10px rgba(255,205,80,.55);
+  transform:rotate(8deg);text-shadow:0 1px 0 rgba(255,255,255,.6);overflow:hidden}
+.g-hard::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);transform:skewX(-20deg);animation:g-shine 2.6s ease-in-out infinite}
+.g-hard.big{top:-12px;right:-10px;font-size:15px;padding:6px 12px 5px;transform:rotate(10deg)}
+.g-hardmode .g-level{border-color:#E3B23C;box-shadow:0 3px 0 rgba(201,143,31,.35);padding-right:30px}
+.g-hardmode .g-frame{box-shadow:var(--shadow), inset 0 0 0 2px #E3B23C, 0 0 0 3px rgba(247,207,90,.55)}
+.g-intro.hard{border-color:#E3B23C;background:linear-gradient(180deg,#FFFBEA,var(--card) 40%)}
+.g-intro.hard .g-chip{background:linear-gradient(90deg,#E3A92B,#F7CF5A);color:#6B4100}
+.g-hard-note{margin:-2px 0 10px;font-size:12.5px;color:#A0721A}
+.g-tip-icon{flex:none;width:44px;height:44px;margin-left:auto}
+.g-tip-icon svg{width:100%;height:100%;display:block;overflow:visible}
+
+.g-win.hard{border-color:#E3B23C;background:linear-gradient(180deg,#FFF9E3,var(--card) 45%)}
+.g-win.hard .g-ribbon{background:linear-gradient(#FFE58A,#E8B33A);color:#6B4100;box-shadow:0 4px 0 #B07A12;text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.g-reward{position:relative;margin:2px auto 14px;padding:10px 10px 12px;border-radius:20px;overflow:hidden;
+  background:linear-gradient(135deg,#FFF6CF,#FFE7A0 50%,#FFF3C4);border:2px solid #E3B23C;box-shadow:0 3px 0 rgba(176,122,18,.35),inset 0 0 18px rgba(255,255,255,.7);
+  opacity:0;transform:scale(.85)}
+.g-reward.show{animation:g-rw-in .55s cubic-bezier(.2,1.5,.4,1) forwards}
+.g-reward::after{content:"";position:absolute;top:0;bottom:0;left:-50%;width:35%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg);animation:g-shine 3s ease-in-out .8s infinite;pointer-events:none}
+.g-rw-title{margin:0 0 6px;font-size:15px;font-weight:800;color:#8A5A00}
+.g-rw-list{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.g-rw{display:flex;flex-direction:column;align-items:center;min-width:88px;max-width:120px}
+.g-rw-icon{display:flex;align-items:center;justify-content:center;width:66px;height:66px;border-radius:18px;background:radial-gradient(circle at 50% 40%,#FFFFFF,#FFF1C2 70%);border:2px solid #E8C04E;box-shadow:0 0 14px rgba(255,205,80,.8)}
+.g-rw-icon svg{width:84%;height:84%;display:block;overflow:visible}
+.g-rw b{margin-top:4px;font-size:14px;color:#6B4100}
+.g-rw small{font-size:11px;color:#A0721A}
+
+@keyframes g-shine{0%{left:-60%}55%,100%{left:130%}}
+@keyframes g-rw-in{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
 @keyframes g-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
 @keyframes g-bump{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
 @keyframes g-fade{from{opacity:0}to{opacity:1}}

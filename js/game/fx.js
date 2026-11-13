@@ -118,6 +118,54 @@ export class FX {
       p.size = cell * (0.12 + Math.random() * 0.08); p.size1 = p.size * .7; p.color = color; p.life = 900 + Math.random() * 300; p.delay = i * 70;
     }
   }
+  /** v1.2 蠟筆塗色的小星星（往上飄、很快消失） */
+  stars(x, y, cell, n = 2, color = '#FFD36E') {
+    if (this.lowPower) n = Math.min(n, 1);
+    for (let i = 0; i < n; i++) {
+      const p = this._get(i % 2 ? 'sparkle' : 'star');
+      const a = -Math.PI / 2 + (Math.random() - .5) * 2.2, sp = cell * (0.6 + Math.random() * 0.9);
+      p.x = x + (Math.random() - .5) * cell * .5; p.y = y + (Math.random() - .5) * cell * .4;
+      p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.drag = 2.2; p.ay = cell * .6;
+      p.size = cell * (0.1 + Math.random() * 0.06); p.size1 = p.size * .3;
+      p.color = p.type === 'sparkle' ? '#FFFFFF' : color; p.life = 480 + Math.random() * 220;
+      p.rot = Math.random() * 6; p.vr = (Math.random() - .5) * 6; p.delay = i * 40;
+    }
+  }
+  /** 小閃光（禮物盒、道具跳出） */
+  sparkles(x, y, cell, n = 4) {
+    if (this.lowPower) n = Math.min(n, 1);
+    for (let i = 0; i < n; i++) {
+      const p = this._get('sparkle');
+      const a = Math.random() * Math.PI * 2, sp = cell * (0.5 + Math.random());
+      p.x = x; p.y = y; p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp - cell * .5; p.drag = 2;
+      p.size = cell * (0.1 + Math.random() * 0.07); p.size1 = p.size * .2; p.color = i % 2 ? '#FFFFFF' : '#FFE7A0';
+      p.life = 420 + Math.random() * 200; p.rot = Math.random() * 6; p.vr = (Math.random() - .5) * 5;
+    }
+  }
+  /** v1.2 禮物盒打開的紙花（彩色小紙片，翻轉飄落） */
+  confetti(x, y, cell, n = 16) {
+    if (this.lowPower) n = Math.min(n, 3);
+    const cols = ['#FF9EB5', '#FFD36E', '#8FD9B6', '#8CCBEA', '#C9A7F5', '#FFB38A', '#FFFFFF'];
+    for (let i = 0; i < n; i++) {
+      const p = this._get('confetti');
+      const a = -Math.PI / 2 + (Math.random() - .5) * 2.6, sp = cell * (2 + Math.random() * 2.6);
+      p.x = x; p.y = y; p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.ay = cell * 6; p.drag = 2.4;
+      p.size = cell * (0.06 + Math.random() * 0.05); p.color = cols[i % cols.length];
+      p.life = 900 + Math.random() * 500; p.rot = Math.random() * 6; p.vr = (Math.random() - .5) * 16; p.len = Math.random() * 6;
+    }
+  }
+  /** v1.2 彩帶：細長捲曲的緞帶往外噴 */
+  streamers(x, y, cell, n = 5) {
+    if (this.lowPower) n = Math.min(n, 2);
+    const cols = ['#FF8FB0', '#FFC94D', '#7DD3B0', '#8CCBEA', '#B79AF0'];
+    for (let i = 0; i < n; i++) {
+      const p = this._get('streamer');
+      const a = -Math.PI / 2 + (i / Math.max(1, n - 1) - .5) * 2.4 + (Math.random() - .5) * .3, sp = cell * (2.6 + Math.random() * 1.6);
+      p.x = x; p.y = y; p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.ay = cell * 5; p.drag = 2.6;
+      p.size = cell * .55; p.width = Math.max(1.5, cell * .07); p.color = cols[i % cols.length];
+      p.life = 950 + Math.random() * 300; p.rot = a; p.len = Math.random() * 6;
+    }
+  }
   /** 浮起的文字（分數、連鎖、組合技） */
   text(x, y, str, size, color = '#E8668C', life = 900, big = false) {
     const p = this._get('text');
@@ -192,6 +240,27 @@ export class FX {
           const sz = p.size + (p.size1 - p.size) * t;
           ctx.globalAlpha = p.alpha * (t < .2 ? t / .2 : 1 - (t - .2) / .8);
           ctx.drawImage(mistSprite(p.color), p.x - sz, p.y - sz, sz * 2, sz * 2);
+          break;
+        }
+        case 'confetti': {
+          ctx.globalAlpha = t < .7 ? 1 : 1 - (t - .7) / .3;
+          const sway = Math.sin(p.age * .012 + p.len) * p.size * 1.2;
+          ctx.translate(p.x + sway, p.y); ctx.rotate(p.rot);
+          ctx.scale(1, Math.cos(p.age * .018 + p.len));    // 翻面
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size, -p.size * .6, p.size * 2, p.size * 1.2);
+          if (p.color === '#FFFFFF') { ctx.strokeStyle = '#F2C6D3'; ctx.lineWidth = 1; ctx.strokeRect(-p.size, -p.size * .6, p.size * 2, p.size * 1.2); }
+          break;
+        }
+        case 'streamer': {
+          ctx.globalAlpha = t < .6 ? 1 : 1 - (t - .6) / .4;
+          const L = p.size * (0.5 + Math.min(1, t * 3) * .5);
+          const ang = Math.atan2(p.vy, p.vx) + Math.PI;     // 尾巴拖在後面
+          const ph = p.age * .02 + p.len;
+          ctx.translate(p.x, p.y); ctx.rotate(ang);
+          ctx.beginPath(); ctx.moveTo(0, 0);
+          for (let k = 1; k <= 6; k++) ctx.lineTo(L * k / 6, Math.sin(ph + k * 1.3) * p.width * 1.8);
+          ctx.strokeStyle = p.color; ctx.lineWidth = p.width; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
           break;
         }
         case 'text': {

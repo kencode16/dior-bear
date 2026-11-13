@@ -7,6 +7,16 @@ import { svgImg, safe, perfumeColor, esc } from './uikit.js';
 
 // 疊放順序（後面的蓋在前面上）。角色在 20。
 const Z = { wall: 2, curtain: 3, lamp: 4, bed: 5, rug: 6, plant: 7, table: 8 };
+// 朋友在窗外打招呼的話（每次隨機挑一句；沒列到的朋友用通用句）
+const FRIEND_HI = {
+  snowball: ['雪球：丁噹熊～一起去抓鮭魚！'],
+  sesame: ['芝麻：新衣服做好了，快來試穿！'],
+  cocoa: ['可可：熱可可泡好囉～'],
+  bobo: ['波波：笑一個！喀嚓～'],
+  heitang: ['黑糖：丁噹熊，今天要來上課嗎？', '黑糖：老師帶了新的繪本喔～'],
+  maple: ['小楓：遊樂園的音樂響起來囉～！', '小楓：一起去坐旋轉木馬吧！'],
+};
+const SHELF_ONE_ROW = 5;   // 梳妝台香水超過這個數量就排成前後兩排
 
 const pct = (v, total) => `${(v / total * 100).toFixed(3)}%`;
 const rectStyle = (r, V) => `left:${pct(r.x, V.w)};top:${pct(r.y, V.h)};width:${pct(r.w, V.w)};height:${pct(r.h, V.h)}`;
@@ -114,8 +124,17 @@ export function mountHouse(container, app, opts = {}) {
     }).join('');
     const unlocked = app.save.perfumesUnlocked();
     const cur = app.save.perfume();
-    shelf.innerHTML = PERFUMES.filter(p => unlocked.includes(p.id))
-      .map(p => `<span class="u-house-bottle${p.id === cur ? ' cur' : ''}">${safe(() => svgImg(perfumeBottleSVG(p.id), '', p.name))}</span>`).join('');
+    const list = PERFUMES.filter(p => unlocked.includes(p.id));
+    const bottle = p => `<span class="u-house-bottle${p.id === cur ? ' cur' : ''}">${safe(() => svgImg(perfumeBottleSVG(p.id), '', p.name))}</span>`;
+    const two = list.length > SHELF_ONE_ROW;
+    shelf.classList.toggle('two', two);
+    if (two) {
+      // 後排（玻璃層板上）＋前排
+      const k = Math.ceil(list.length / 2);
+      shelf.innerHTML = `<div class="u-house-row back">${list.slice(0, k).map(bottle).join('')}</div><div class="u-house-row">${list.slice(k).map(bottle).join('')}</div>`;
+    } else {
+      shelf.innerHTML = list.map(bottle).join('');
+    }
   }
   el.querySelector('.u-house-vanity')?.addEventListener('click', e => { e.stopPropagation(); o.onVanityTap?.(); });
   furnLayer.addEventListener('click', e => {
@@ -136,7 +155,8 @@ export function mountHouse(container, app, opts = {}) {
     peek.innerHTML = safe(() => svgImg(friendSVG(f.id, { expr: 'happy' }), '', f.name));
     const hi = document.createElement('div');
     hi.className = 'u-friend-hi';
-    hi.textContent = `${f.name}：丁噹熊～出來玩！`;
+    const lines = [`${f.name}：丁噹熊～出來玩！`, ...(FRIEND_HI[f.id] || [])];
+    hi.textContent = lines[Math.floor(Math.random() * lines.length)];
     win.appendChild(peek);
     el.appendChild(hi);
     peek.addEventListener('click', e => { e.stopPropagation(); app.audio.sfx('tap'); safe(() => duo?.say(`${f.name}來找我們玩了！`)); });

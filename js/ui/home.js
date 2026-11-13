@@ -32,7 +32,11 @@ export default {
     j = janitor();
     app.audio.playMusic('home');
     const lv = app.save.unlockedLevel();
-    const allDone = app.save.isCleared(app.config.TOTAL_LEVELS);
+    const { TOTAL_LEVELS } = app.config;
+    const allDone = app.save.isCleared(TOTAL_LEVELS);   // v1.2：60 關全破才算全部完成
+    // 普通版全破後，按鈕小字改顯示困難模式進度
+    const hardAll = allDone && !!safe(() => app.save.isHardCleared(TOTAL_LEVELS) && app.save.hardChapterCleared(app.config.CHAPTERS.length), false);
+    const startSub = !allDone ? `第 ${lv} 關` : hardAll ? '全部完成了！' : `困難模式 第 ${safe(() => app.save.unlockedHardLevel(), 1)} 關`;
     const curP = app.items.PERFUMES.find(p => p.id === app.save.perfume()) || app.items.PERFUMES[0];
     const ch = app.save.maxChapter();
     const chName = app.config.CHAPTERS[ch - 1]?.name || '';
@@ -43,7 +47,7 @@ export default {
         <div class="u-home-scene u-enter" style="--d:1"></div>
         <div class="u-home-side">
           <button class="btn u-start u-enter" style="--d:2" data-go="map">
-            ${ICONS.map}<span><b>${allDone ? '冒險地圖' : '開始冒險'}</b><small>${allDone ? '全部完成了！' : `第 ${lv} 關`}</small></span>
+            ${ICONS.map}<span><b>${allDone ? '冒險地圖' : '開始冒險'}</b><small>${esc(startSub)}</small></span>
           </button>
           <nav class="u-menu u-enter" style="--d:3">
             ${MENU.map(m => `<button class="u-menu-btn" data-go="${m.go}"><span class="u-menu-ic">${ICONS[m.icon]}</span><span class="u-menu-name">${esc(m.name)}</span><i class="u-dot" data-badge="${m.go}"></i></button>`).join('')}

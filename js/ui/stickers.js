@@ -1,4 +1,4 @@
-// 熊熊朋友圖鑑：16 張貼紙，依朋友分組；點開看大圖和說明，鎖住的顯示解鎖條件。
+// 熊熊朋友圖鑑：24 張貼紙（6 位朋友各 3 張＋丁噹熊和大不溜每章 1 張），依朋友分組；點開看大圖和說明，鎖住的顯示解鎖條件。
 import { stickerSVG, lockedStickerSVG, friendSVG } from '../art/collections.js';
 import { STICKER_CAPTIONS } from '../data/story.js';
 import { topBar, janitor, svgImg, safe, esc, modal } from './uikit.js';
@@ -32,7 +32,7 @@ export default {
       const got = s.stickersUnlocked();
       const groups = [
         ...FRIENDS.map(f => ({ key: f.id, title: `${f.species}・${f.name}`, sub: f.like, met: s.isCleared(f.chapter * 10), friend: f, list: STICKERS.filter(st => st.friend === f.id) })),
-        { key: 'bear', title: '丁噹熊和大不溜', sub: '每章全部拿到 3 星的特別照', met: true, list: STICKERS.filter(st => st.kind === 'bear') },
+        { key: 'bear', title: '丁噹熊和大不溜', sub: '每章 10 關都拿到 3 星的特別照', met: true, list: STICKERS.filter(st => st.kind === 'bear') },
       ];
       body.innerHTML = `
         <div class="u-st-progress card u-enter" style="--d:0">
@@ -45,7 +45,7 @@ export default {
             ${g.friend ? `<span class="u-st-face${g.met ? '' : ' unmet'}">${safe(() => svgImg(friendSVG(g.friend.id, { expr: 'happy' })))}</span>` : ''}
             <div><h3>${g.met ? esc(g.title) : '？？？'}</h3><small>${g.met ? esc(g.sub) : `第 ${g.friend?.chapter} 章會認識的朋友`}</small></div>
           </header>
-          <div class="u-st-grid${g.list.length > 3 ? ' four' : ''}">
+          <div class="u-st-grid${g.list.length === 4 ? ' four' : g.list.length > 4 ? ' many' : ''}">
             ${g.list.map(st => {
               const un = got.includes(st.id);
               const isNew = un && !s.seen('stv_' + st.id);

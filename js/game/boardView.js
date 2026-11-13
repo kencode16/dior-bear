@@ -1,8 +1,41 @@
 // 棋盤畫面（C 擁有）：canvas 繪製、操作、依引擎 steps 播放動畫。
 // 座標：sprite 的 x、y 以「格」為單位（x＝欄、y＝列，可為小數），畫的時候才換成像素。
-import { tileSVG, specialSVG, babySVG, snowSVG, crateSVG, lockSVG, exitSVG, ITEM_COLORS } from '../art/tiles.js';
+// tiles.js 用命名空間 import：v1.2 新的 export（paintSVG、giftSVG）還沒加好時不會讓整個遊戲載入失敗，改畫簡單替代圖。
+import * as T from '../art/tiles.js';
 import { sprite, whenReady } from './sprites.js';
 import { FX, roundRect } from './fx.js';
+
+const { tileSVG, specialSVG, babySVG, snowSVG, crateSVG, lockSVG, exitSVG } = T;
+const ITEM_COLORS = T.ITEM_COLORS || {};
+
+// ---- v1.2 塗色、禮物盒：有 B1 的圖就用，沒有就用簡單替代圖 ----
+const FALLBACK_PAINT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+  '<rect x="5" y="5" width="90" height="90" rx="24" fill="#FFD3E2"/>' +
+  '<path d="M12 34 L34 12 M12 58 L58 12 M14 82 L82 14 M36 90 L90 36 M62 90 L90 62" stroke="#FFB0C9" stroke-width="8" stroke-linecap="round" opacity=".85"/>' +
+  '<path d="M18 20 Q50 10 82 22" stroke="#FFF" stroke-width="4" stroke-linecap="round" fill="none" opacity=".6"/></svg>';
+function fallbackGift(n) {
+  const wrap = n >= 2 ? '#C9A7F5' : '#FF9EB5', rib = n >= 2 ? '#FFD36E' : '#FFF4C2';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+    `<rect x="14" y="36" width="72" height="54" rx="10" fill="${wrap}" stroke="#5A3A2E" stroke-width="4"/>` +
+    `<rect x="9" y="26" width="82" height="20" rx="7" fill="${wrap}" stroke="#5A3A2E" stroke-width="4"/>` +
+    `<rect x="44" y="26" width="12" height="64" fill="${rib}" stroke="#5A3A2E" stroke-width="3"/>` +
+    (n >= 2 ? `<rect x="14" y="60" width="72" height="9" fill="${rib}" stroke="#5A3A2E" stroke-width="3"/>` : '') +
+    `<path d="M50 26 C36 6 22 16 34 26 Z M50 26 C64 6 78 16 66 26 Z" fill="${rib}" stroke="#5A3A2E" stroke-width="3.5" stroke-linejoin="round"/></svg>`;
+}
+/** 已上色格子的底（B1 的 paintSVG，沒有就用替代圖） */
+export function paintArt() {
+  try { if (typeof T.paintSVG === 'function') { const s = T.paintSVG(); if (s) return s; } } catch (e) { console.error('paintSVG 失敗', e); }
+  return FALLBACK_PAINT;
+}
+/** 禮物盒 1–2 層（B1 的 giftSVG，沒有就用替代圖） */
+export function giftArt(n = 1) {
+  n = Math.max(1, Math.min(2, n | 0));
+  try { if (typeof T.giftSVG === 'function') { const s = T.giftSVG(n); if (s) return s; } } catch (e) { console.error('giftSVG 失敗', e); }
+  return fallbackGift(n);
+}
+const paintKey = () => (typeof T.paintSVG === 'function' ? 'paint' : 'paint:fb');
+const giftKey = n => (typeof T.giftSVG === 'function' ? 'gift:' : 'gift:fb:') + n;
+const PASTELS = ['#FF9EB5', '#FFD36E', '#8FD9B6', '#8CCBEA', '#C9A7F5', '#FFB38A'];
 
 const DPR_MAX = 2.5;
 const TILE_SCALE = 0.9;       // tile 圖佔格子的比例
@@ -81,7 +114,8 @@ export class BoardView {
     this.cells = [];
     for (let r = 0; r < this.h; r++) for (let c = 0; c < this.w; c++) {
       const k = g.cell(r, c);
-      this.cells.push({ hole: !!k.hole, snow: k.snow | 0, crate: k.crate | 0, lock: k.lock || null, lockS: 1, crateHit: 0, snowHit: 0 });
+      this.cells.push({ hole: !!k.hole, snow: k.snow | 0, crate: k.crate | 0, lock: k.lock || null, lockS: 1, crateHit: 0, snowHit: 0,
+        paint: k.paint ? 1 : 0, paintK: 1, gift: k.gift | 0, giftHit: 0, giftOpen: 0, giftOpenN: 1 });
       if (k.tile) this._addSprite(k.tile, r, c);
     }
     // 出口：每個出口欄最下面一個可用格
@@ -108,6 +142,9 @@ export class BoardView {
     for (let r = 0; r < this.h; r++) for (let c = 0; c < this.w; c++) {
       const k = g.cell(r, c), m = this.cells[r * this.w + c];
       m.snow = k.snow | 0; m.crate = k.crate | 0;
+      const kp = k.paint ? 1 : 0;
+      if (kp !== m.paint) { fx.changed++; if (fx.samples.length < 6) fx.samples.push(`paint@${r},${c}`); m.paint = kp; m.paintK = 1; }
+      if ((k.gift | 0) !== m.gift) { fx.changed++; if (fx.samples.length < 6) fx.samples.push(`gift@${r},${c}`); m.gift = k.gift | 0; }
       if ((k.lock || null) !== m.lock) { m.lock = k.lock || null; m.lockS = 1; }
       if (!k.tile) continue;
       seen.add(k.tile.id);
@@ -162,6 +199,10 @@ export class BoardView {
     for (const n of [1, 2, 3]) list.push(sprite('crate:' + n, () => crateSVG(n), Math.round(full * .96)));
     for (const k of ['yarn', 'honey']) list.push(sprite('lock:' + k, () => lockSVG(k), full));
     if (this.exitCells.length) list.push(sprite('exit', () => exitSVG(), full, Math.round(full * .4)));
+    // v1.2：有塗色／禮物盒的關卡才準備
+    const goals = this.g.goals || [];
+    if (goals.some(x => x.type === 'paint') || this.cells.some(m => m.paint)) list.push(sprite(paintKey(), paintArt, full));
+    if (goals.some(x => x.target === 'gift') || this.cells.some(m => m.gift)) for (const n of [1, 2]) list.push(sprite(giftKey(n), () => giftArt(n), Math.round(full * .96)));
     const p = whenReady(list);
     p.then(() => this._prerenderBg());
     return p;
@@ -253,6 +294,23 @@ export class BoardView {
     if (this.bg) ctx.drawImage(this.bg, 0, 0, this.W, this.H);
     const X0 = this.offX + PAD, Y0 = PAD;
 
+    // v1.2 塗色層（格子底色之上、雪和 tile 之下）
+    let paintSp = null;
+    for (let i = 0; i < this.cells.length; i++) {
+      const m = this.cells[i];
+      if (!m.paint || m.hole) continue;
+      const k = m.paintK == null ? 1 : m.paintK;
+      if (k <= 0.01) continue;
+      if (!paintSp) paintSp = sprite(paintKey(), paintArt, Math.round(cell * dpr));
+      const r = (i / this.w) | 0, c = i % this.w;
+      ctx.save();
+      ctx.translate(X0 + (c + .5) * cell, Y0 + (r + .5) * cell);
+      if (k !== 1) { ctx.scale(k, k); ctx.rotate((1 - Math.min(1, k)) * .5); }
+      if (paintSp.ready) ctx.drawImage(paintSp.canvas, -cell / 2, -cell / 2, cell, cell);
+      else { ctx.globalAlpha = .8; ctx.fillStyle = '#FFD3E2'; roundRect(ctx, -cell * .45, -cell * .45, cell * .9, cell * .9, cell * .24); ctx.fill(); }
+      ctx.restore();
+    }
+
     // 雪墊
     for (let i = 0; i < this.cells.length; i++) {
       const m = this.cells[i];
@@ -277,6 +335,29 @@ export class BoardView {
       else { ctx.fillStyle = '#C08A5A'; roundRect(ctx, -cell * .44, -cell * .44, cell * .88, cell * .88, 8); ctx.fill(); }
       ctx.restore();
       if (m.crateHit > 0) m.crateHit = Math.max(0, m.crateHit - 0.016);
+    }
+    // v1.2 禮物盒（受傷時左右晃＋彈一下；打開時放大淡出）
+    for (let i = 0; i < this.cells.length; i++) {
+      const m = this.cells[i];
+      if (!m.gift && !(m.giftOpen > 0)) continue;
+      const r = (i / this.w) | 0, c = i % this.w;
+      const n = m.gift ? Math.min(2, m.gift) : (m.giftOpenN || 1);
+      const sp = sprite(giftKey(n), () => giftArt(n), Math.round(cell * dpr * .96));
+      ctx.save();
+      ctx.translate(X0 + (c + .5) * cell, Y0 + (r + .5) * cell);
+      if (m.gift) {
+        const h = m.giftHit;
+        if (h > 0) { ctx.rotate(Math.sin(h * 34) * 0.14 * h); const b = 1 + Math.sin(h * Math.PI) * .1; ctx.scale(b, 2 - b); }
+        else { const t = now * .0025 + i; ctx.rotate(Math.sin(t) * .025); }
+      } else {
+        const o = m.giftOpen;                         // 1 → 0
+        ctx.globalAlpha = o;
+        ctx.scale(1 + (1 - o) * .45, 1 + (1 - o) * .45);
+      }
+      if (sp.ready) ctx.drawImage(sp.canvas, -cell * .48, -cell * .48, cell * .96, cell * .96);
+      else { ctx.fillStyle = '#FF9EB5'; roundRect(ctx, -cell * .42, -cell * .36, cell * .84, cell * .78, 8); ctx.fill(); ctx.fillStyle = '#FFF4C2'; ctx.fillRect(-cell * .06, -cell * .36, cell * .12, cell * .78); }
+      ctx.restore();
+      if (m.giftHit > 0) m.giftHit = Math.max(0, m.giftHit - 0.02);
     }
 
     // tile（裁切在棋盤範圍內，從上方掉進來的才不會露出）
@@ -415,12 +496,27 @@ export class BoardView {
         return Promise.all(js);
       }
       case 'create': {
+        if (!ev.tile) return null;
         const s = this._addSprite(ev.tile, ev.r, ev.c);
         s.s = 0;
         const { x, y } = this.center(ev.r, ev.c);
+        if (ev.from === 'gift') {
+          // 禮物盒打開：道具從盒子裡跳出來
+          const m = this.cells[ev.r * this.w + ev.c];
+          if (m && m.gift) { m.giftOpenN = Math.min(2, m.gift); m.gift = 0; m.giftOpen = 1; this.tween(m, { giftOpen: 0 }, 300, 'outQuad'); }
+          const d0 = hasActivate ? 200 : 120;
+          if (!this.instant) {
+            setTimeout(() => { if (this.destroyed) return; fx.ring(x, y, cell * .2, cell * 1.2, '#FFD36E', 420, cell * .14); fx.sparkles(x, y - cell * .3, cell, 5); }, d0);
+          }
+          s.y = ev.r;
+          return this.tween(s, { s: 1.15, y: ev.r - .5 }, 200, 'outQuad', d0)
+            .then(() => this.tween(s, { s: 1, y: ev.r }, 260, 'outBack'))
+            .then(() => { if (this.instant) return; s.sx = 1.14; s.sy = .84; return this.tween(s, { sx: 1, sy: 1 }, 170, 'outBack'); });
+        }
         if (!this.instant) { fx.ring(x, y, cell * .2, cell * .9, '#FFD36E', 380, cell * .12); fx.flakes(x, y, cell, '#FFE7A0', 6); }
         return this.tween(s, { s: 1 }, 260, 'outBack', hasActivate ? 160 : 60);
       }
+      case 'paint': return this._paint(ev, hasActivate);
       case 'activate': return this._activate(ev);
       case 'combo': {
         const { x, y } = this.center(ev.r, ev.c);
@@ -449,6 +545,7 @@ export class BoardView {
       }
       case 'obstacle': {
         const m = this.cells[ev.r * this.w + ev.c];
+        if (!m) return null;
         const { x, y } = this.center(ev.r, ev.c);
         if (ev.kind === 'snow') {
           m.snow = ev.left;
@@ -456,7 +553,22 @@ export class BoardView {
         } else if (ev.kind === 'crate') {
           m.crate = ev.left; m.crateHit = 1;
           if (!this.instant) fx.chips(x, y, ev.left ? '#C99A73' : '#A8774E', cell, ev.left ? 4 : 9);
-        } else {
+        } else if (ev.kind === 'gift') {
+          if (ev.left > 0) {
+            m.gift = ev.left; m.giftHit = 1;
+            if (!this.instant) { fx.confetti(x, y - cell * .2, cell, 5); fx.sparkles(x, y - cell * .35, cell, 2); }
+          } else {
+            // 打開：彩帶紙花（道具由之後的 create from:'gift' 跳出來）
+            if (m.gift) { m.giftOpenN = Math.min(2, m.gift); m.gift = 0; m.giftOpen = 1; this.tween(m, { giftOpen: 0 }, 300, 'outQuad'); }
+            if (!this.instant) {
+              fx.confetti(x, y - cell * .1, cell, 22);
+              fx.streamers(x, y - cell * .1, cell, 6);
+              fx.ring(x, y, cell * .25, cell * 1.3, '#FFFFFF', 360, cell * .12);
+              this.shake(cell * .05, 180);
+            }
+          }
+          return this.wait(160);
+        } else if (ev.kind === 'yarn' || ev.kind === 'honey') {
           if (!ev.left) m.lock = null;
           if (!this.instant) {
             if (ev.kind === 'honey') { fx.flakes(x, y, cell, '#FFC94D', 7); fx.flakes(x, y, cell, '#FFE7A0', 4); }
@@ -523,6 +635,46 @@ export class BoardView {
       case 'end': case 'goals': case 'score': default:
         return null;
     }
+  }
+
+  /** v1.2 蠟筆塗色：色塊從「已經有顏色的格子」那一側依序擴開，伴隨小星星 */
+  _paint(ev, hasActivate) {
+    const cells = (ev.cells || []).filter(p => p && p.r >= 0 && p.c >= 0 && p.r < this.h && p.c < this.w);
+    if (!cells.length) return null;
+    const cell = this.cell, fx = this.fx;
+    // 起點：本次之前就已上色、且和新格子相鄰的格子；找不到就用新格子的中心
+    const fresh = new Set(cells.map(p => p.r * this.w + p.c));
+    let ox = 0, oy = 0, on = 0;
+    for (const p of cells) {
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const r = p.r + dr, c = p.c + dc;
+        if (r < 0 || c < 0 || r >= this.h || c >= this.w) continue;
+        const i = r * this.w + c;
+        if (!fresh.has(i) && this.cells[i].paint) { ox += r; oy += c; on++; }
+      }
+    }
+    if (!on) { for (const p of cells) { ox += p.r; oy += p.c; } on = cells.length; }
+    ox /= on; oy /= on;
+    const base = hasActivate ? 220 : 120;
+    const js = [];
+    let k = 0;
+    for (const p of cells) {
+      const m = this.cells[p.r * this.w + p.c];
+      if (!m || m.hole) continue;
+      const already = m.paint && (m.paintK == null || m.paintK >= 1);
+      m.paint = 1;
+      if (already) continue;
+      const d = base + Math.min(420, Math.hypot(p.r - ox, p.c - oy) * 55);
+      m.paintK = 0;
+      js.push(this.tween(m, { paintK: 1 }, 300, 'outBack', d));
+      if (!this.instant && k < 14) {
+        const { x, y } = this.center(p.r, p.c);
+        const col = PASTELS[(p.r * 3 + p.c) % PASTELS.length];
+        setTimeout(() => { if (!this.destroyed) fx.stars(x, y, cell, 2, col); }, d / Math.max(.2, this.timeScale));
+      }
+      k++;
+    }
+    return Promise.all(js);
   }
 
   _fallTo(s, r, c) {

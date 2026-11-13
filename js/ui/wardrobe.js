@@ -1,4 +1,5 @@
 // 換裝：丁噹熊／大不溜分頁、部位分頁、物件格。點沒買的東西可以先試穿，再決定要不要買。
+// v1.2：金色限定（reward:{hardChapter:N}，不能買）還沒拿到時顯示金色鎖＋「困難模式第 N 章獎勵」，可以先試穿看看。
 import { itemIconSVG } from '../art/chars.js';
 import { mountDuo } from './charactersView.js';
 import { topBar, janitor, svgImg, safe, esc, starIcon, ICONS, perfumeColor, bearSay } from './uikit.js';
@@ -15,6 +16,7 @@ export default {
     app.audio.playMusic('home');
     const { BEAR_SLOTS, DOG_SLOTS, BEAR_ITEMS, DOG_ITEMS } = app.items;
     const s = app.save;
+    safe(() => s.claimRewards?.());   // 已達成但還沒發的金色限定先發掉
     let who = params.who === 'dog' ? 'dog' : 'bear';
     let slot = who === 'bear' ? BEAR_SLOTS[0].id : DOG_SLOTS[0].id;
     let trying = null;
@@ -68,10 +70,13 @@ export default {
       for (const it of list()) {
         const owned = s.isOwned(it.id);
         const wearing = eq[it.slot] === it.id;
-        const locked = !owned && it.chapter > maxCh;
-        const cls = ['u-item', wearing ? 'wearing' : '', owned ? 'owned' : '', locked ? 'locked' : '', trying === it.id ? 'trying' : '', !owned && !locked && s.canBuy(it.id) ? 'canbuy' : ''].filter(Boolean).join(' ');
+        const gold = !!it.reward;
+        const goldLocked = gold && !owned;
+        const locked = !owned && !gold && it.chapter > maxCh;
+        const cls = ['u-item', wearing ? 'wearing' : '', owned ? 'owned' : '', locked ? 'locked' : '', gold ? 'gold' : '', goldLocked ? 'goldlocked' : '', trying === it.id ? 'trying' : '', !owned && !locked && !gold && s.canBuy(it.id) ? 'canbuy' : ''].filter(Boolean).join(' ');
         const tag = wearing ? `<span class="u-item-tag ok">${ICONS.check}穿著中</span>`
-          : owned ? '<span class="u-item-tag">已擁有</span>'
+          : owned ? `<span class="u-item-tag">${gold ? '✦ 金色限定' : '已擁有'}</span>`
+          : goldLocked ? `<span class="u-item-tag goldlock">${ICONS.goldLock}<span>困難模式<br>第 ${it.reward.hardChapter} 章獎勵</span></span>`
           : locked ? `<span class="u-item-tag lock">${ICONS.lock}第 ${it.chapter} 章</span>`
           : `<span class="u-item-tag price">${starIcon('u-star sm')}${it.price}</span>`;
         html += `<button class="${cls}" data-id="${it.id}"><span class="u-item-art">${safe(() => svgImg(itemIconSVG(it.id), '', it.name))}</span>` +
@@ -85,8 +90,13 @@ export default {
       const bb = $('.u-buybar');
       if (!trying) { bb.hidden = true; bb.innerHTML = ''; return; }
       const it = [...BEAR_ITEMS, ...DOG_ITEMS].find(i => i.id === trying);
-      const enough = s.starsAvailable() >= it.price;
       bb.hidden = false;
+      if (it.reward) {
+        bb.innerHTML = `<div class="u-buybar-in card gold"><span class="u-buybar-txt">試穿中：<b>${esc(it.name)}</b><small>${ICONS.goldLock}困難模式第 ${it.reward.hardChapter} 章 10 關全破就送你！</small></span>` +
+          `<button class="btn ghost u-buybar-no" data-act="cancel">好～</button></div>`;
+        return;
+      }
+      const enough = s.starsAvailable() >= it.price;
       bb.innerHTML = `<div class="u-buybar-in card"><span class="u-buybar-txt">試穿中：<b>${esc(it.name)}</b></span>` +
         `<button class="btn ghost u-buybar-no" data-act="cancel">不要</button>` +
         `<button class="btn ${enough ? 'honey' : 'ghost dim'}" data-act="buy">${starIcon('u-star sm')}${it.price} 買下來</button></div>`;
@@ -119,6 +129,13 @@ export default {
         render(); refreshDuo();
         return;
       }
+      if (it.reward) {
+        app.audio.sfx('select');
+        trying = trying === id ? null : id;
+        render(); refreshDuo();
+        if (trying) safe(() => duo?.say(`金色限定！困難模式第 ${it.reward.hardChapter} 章全破就能拿到✦`));
+        return;
+      }
       if (it.chapter > s.maxChapter()) {
         app.audio.sfx('tap');
         bearSay(app, `「${it.name}」要到第 ${it.chapter} 章才會開賣喔～`);
@@ -132,7 +149,7 @@ export default {
 
     function buy() {
       const it = [...BEAR_ITEMS, ...DOG_ITEMS].find(i => i.id === trying);
-      if (!it) return;
+      if (!it || it.price == null) return;
       if (s.buy(it.id)) {
         s.equip(it.slot, it.id);
         app.audio.sfx('buy');

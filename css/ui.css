@@ -425,3 +425,106 @@ html[data-tod=dusk] .u-map-end{text-shadow:0 1px 0 rgba(255,255,255,.7)}
 .u-map-sky .tod-birds{right:34%!important;top:18%!important}
 /* 寬螢幕兩側已看得到整頁天空的太陽／月亮，天空卡裡就不再重複畫 */
 @media (min-width:700px){.u-map-sky .tod-sun,.u-map-sky .tod-moon,.u-map-sky .tod-glow{display:none}}
+
+/* ---------- v1.2 地圖：六章、普通／困難切換、困難模式金色調 ---------- */
+.u-map-body{display:flex;flex-direction:column;gap:16px}
+.u-node.soon .u-node-drop{opacity:.72}
+.u-node-soon{position:absolute;bottom:-16px;background:var(--card);border:1.5px dashed var(--gold-line);border-radius:999px;padding:0 7px;font-size:11px;font-weight:800;color:var(--caramel);white-space:nowrap}
+/* 切換鈕（取代頂部列標題的位置） */
+.u-mode{flex:1;display:flex;justify-content:center;min-width:0}
+.u-mode-in{display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:var(--cream-2);border:2px solid var(--gold-line)}
+.u-mode-btn{position:relative;min-height:36px;padding:0 13px;border-radius:999px;font-weight:800;font-size:15px;color:var(--caramel);white-space:nowrap;transition:background .2s,color .2s}
+.u-mode-btn.on[data-mode=normal]{background:var(--card);color:var(--pink-deep);box-shadow:0 3px 0 var(--gold-line)}
+.u-mode-btn.on[data-mode=hard]{background:linear-gradient(180deg,#FFF1C2,#F2C766 55%,#E2A94B);color:#6B4518;box-shadow:0 3px 0 #B8862B,inset 0 1px 0 #fff}
+.u-mode-btn .u-dot{top:-3px;right:-2px}
+.u-map.hard .u-topbar{background:linear-gradient(180deg,rgba(255,246,224,.92),rgba(255,236,230,.9));border-bottom-color:rgba(226,184,78,.6)}
+.u-map.hard .u-mode-in{background:#FBEBD8;border-color:#E2B84E}
+/* 天空卡上的「困難模式」金色牌子 */
+.u-map-hardtag{position:absolute;left:14px;top:10px;z-index:2;display:none}
+.u-map.hard .u-map-hardtag{display:flex;align-items:center;gap:6px;background:linear-gradient(180deg,#FFF6D8,#F7D27A);border:2px solid #fff;border-radius:999px;padding:2px 12px 2px 10px;box-shadow:0 2px 0 #C9963A,0 4px 10px rgba(180,120,40,.25);font-size:13px;font-weight:800;color:#6B4518;letter-spacing:.04em}
+.u-map-hardtag b{font-size:13px;color:#B5533F}
+.u-map.hard .u-map-sky{border-color:#E2B84E;box-shadow:0 5px 0 rgba(201,150,58,.35),0 12px 26px rgba(180,120,40,.16)}
+/* 整頁淡淡的金色＋玫瑰金 */
+.u-map.hard::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(255,232,180,.4),rgba(248,205,196,.36) 50%,rgba(255,232,180,.36))}
+/* 章節段落 */
+.u-map.hard .u-ch{border-color:#E2B84E;box-shadow:0 5px 0 rgba(201,150,58,.38),0 0 0 3px rgba(255,243,207,.9) inset,0 12px 26px rgba(180,120,40,.16)}
+.u-ch-gold{position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(2.2px 2.2px at 14% 22%,#fff 99%,transparent),radial-gradient(1.8px 1.8px at 86% 30%,#FFF6CF 99%,transparent),
+    radial-gradient(2px 2px at 30% 64%,#FFF6CF 99%,transparent),radial-gradient(1.6px 1.6px at 70% 78%,#fff 99%,transparent),
+    radial-gradient(1.8px 1.8px at 52% 46%,#fff 99%,transparent),radial-gradient(2px 2px at 92% 88%,#FFF6CF 99%,transparent),
+    linear-gradient(180deg,rgba(255,214,130,.34),rgba(244,178,168,.30) 55%,rgba(255,214,130,.30));
+  background-size:100% 380px,100% 380px,100% 380px,100% 380px,100% 380px,100% 380px,100% 100%}
+.u-map.hard .u-path-under{stroke:rgba(255,250,236,.92)}
+.u-map.hard .u-path-line{stroke:#D9A441;stroke-dasharray:3 11}
+.u-map.hard .u-map-deco{opacity:.42;filter:sepia(.35) saturate(1.1)}
+/* 標題卡 */
+.u-map.hard .u-ch-banner{background:linear-gradient(180deg,rgba(255,253,245,.96),rgba(255,241,234,.96));border-color:#E2B84E;box-shadow:0 5px 0 rgba(201,150,58,.3),0 12px 26px rgba(180,120,40,.12)}
+.u-map.hard .u-ch-no{color:#B5533F}
+.u-map.hard .u-ch-theme{background:linear-gradient(180deg,#F5CF73,#D9A441)}
+.u-ch-hard{display:inline-flex;align-items:center;margin-left:2px;padding:1px 9px;border-radius:999px;background:linear-gradient(180deg,#FFF3C9,#F2C766);border:1.5px solid #D9A441;color:#6B4518;font-size:12px;letter-spacing:.02em;white-space:nowrap;box-shadow:0 2px 0 rgba(184,134,43,.45)}
+.u-ch-hard.done{background:linear-gradient(180deg,#FFE3DA,#F0B2A4);border-color:#C97B6A;color:#7A3A2C}
+.u-ch-goldchip{display:inline-flex;align-items:center;gap:3px;background:linear-gradient(90deg,#FFF3D2,#FCE2D9);border:1.5px solid #E8C77A;border-radius:999px;padding:1px 7px 1px 2px;font-weight:800;color:#8A5A1E;white-space:nowrap}
+.u-ch-goldic{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle,#fff 0 40%,#FFE8A8 100%);flex:none}
+.u-ch-goldic img{max-width:100%;max-height:100%}
+.u-ch-goldchip:not(.got) .u-ch-goldic img{filter:saturate(.55) opacity(.75)}
+.u-ch-goldchip svg{width:14px;height:14px;flex:none}
+.u-ch-goldchip.got{background:linear-gradient(90deg,#FFE9A6,#F7C9BC);border-color:#D9A441;color:#6B4518}
+.u-goldlock{width:14px;height:14px}
+/* 關卡點：可以玩＝金色、過關＝玫瑰金 */
+.u-map.hard .u-node:not(.locked):not(.cleared) .u-node-drop{background:radial-gradient(circle at 34% 30%,#FFFDF0 0 12%,#FBE08F 40%,#DDA737 100%);border-color:#B8862B;box-shadow:0 5px 0 #A87720,0 10px 16px rgba(150,100,40,.28)}
+.u-map.hard .u-node:not(.locked):not(.cleared) .u-node-drop b{text-shadow:0 2px 0 #A87720,0 0 4px rgba(120,70,10,.5)}
+.u-map.hard .u-node.cleared .u-node-drop{background:radial-gradient(circle at 34% 30%,#FFFFFF 0 12%,#F9D5C8 42%,#DE9583 100%);border-color:#C27766;box-shadow:0 5px 0 #A9604F,0 0 0 2px rgba(255,226,160,.8),0 10px 16px rgba(170,90,70,.25)}
+.u-map.hard .u-node.cleared .u-node-drop b{text-shadow:0 2px 0 #A9604F}
+.u-map.hard .u-node.cur .u-node-drop{animation:uCurGold 1.3s ease-in-out infinite}
+@keyframes uCurGold{50%{box-shadow:0 5px 0 #A87720,0 0 0 9px rgba(250,214,120,.5),0 10px 16px rgba(150,100,40,.28)}}
+.u-map.hard .u-node-stars{background:#FFF8E6;box-shadow:0 0 0 1.5px #E2B84E,0 2px 5px rgba(150,100,40,.2)}
+.u-map.hard .u-node-stars svg.on path{fill:#FFD45E;stroke:#B8862B}
+.u-map.hard .u-node-bear .u-bearhead{border-color:#E2B84E;background:#FFF1D0}
+.u-map.hard .u-node-bear::after{background:#E2B84E}
+.u-map.hard .u-node-crown{color:#E9B53F;text-shadow:0 2px 0 #fff,0 0 4px #B8862B}
+.u-map.hard .u-ch-lockmsg{border-color:#E2B84E;background:#FFFBF0}
+.u-map.hard .u-map-end{color:#8A5A1E}
+html[data-tod=night] .u-map.hard .u-map-end{color:#FFE9B0}
+@media (max-width:370px){
+  .u-mode-btn{padding:0 9px;font-size:14px}
+  .u-ch-goldchip{font-size:12px}
+}
+
+/* ---------- v1.2 金色限定（換裝、布置） ---------- */
+.u-item.gold{border-color:#E2B84E;box-shadow:0 4px 0 #D9A441;background:linear-gradient(180deg,#FFFDF4,#FFF1D4)}
+.u-item.gold::before{content:"✦";position:absolute;top:5px;left:9px;font-size:13px;color:#D9A441}
+.u-item.gold.wearing{border-color:var(--mint-deep);box-shadow:0 4px 0 var(--mint-deep);background:linear-gradient(180deg,#FFFBEA,var(--mint-soft))}
+.u-item.goldlocked{background:linear-gradient(180deg,#FFFBF0,#FBEFE2)}
+.u-item.goldlocked .u-item-art{filter:saturate(.6) opacity(.72)}
+.u-item.gold.trying{border-color:#D9A441;box-shadow:0 4px 0 #B8862B;background:linear-gradient(180deg,#fff,#FFEFC8)}
+.u-item-tag.goldlock{gap:4px;color:#A8741E;font-size:11px;line-height:1.2;text-align:left}
+.u-item-tag.goldlock .u-goldlock{width:16px;height:16px;flex:none}
+.u-buybar-in.gold{border-color:#E2B84E;background:linear-gradient(90deg,#FFFDF4,#FFF1DA)}
+.u-buybar-txt small{display:flex;align-items:center;gap:3px;margin-top:2px;font-size:12px;font-weight:700;color:#A8741E}
+.u-buybar-txt small .u-goldlock{width:14px;height:14px;flex:none}
+.u-buybar-txt b{display:inline}
+
+/* ---------- v1.2 香水櫃 9 瓶（三層） ---------- */
+.u-vanity-shelves{display:flex;flex-direction:column}
+.u-bottle.gold{background:radial-gradient(ellipse at 50% 92%,rgba(255,224,140,.75) 0 30%,transparent 62%)}
+.u-bottle.gold::after{content:"";position:absolute;left:20%;right:20%;bottom:25px;height:9px;border-radius:50%;background:linear-gradient(180deg,#FBE08F,#D9A441);box-shadow:0 2px 0 #B8862B;z-index:0}
+.u-bottle.gold .u-bottle-art{position:relative;z-index:1}
+.u-bottle.gold .u-bottle-name{color:#A8741E}
+.u-bottle.gold.locked .u-bottle-name{color:#C9A15A}
+.u-bottle.gold.locked img.sil{filter:brightness(0) invert(.78) sepia(1) saturate(2.4) hue-rotate(-6deg);opacity:.42}
+@media (max-width:819px){
+  .u-vanity-shelf{padding:12px 10px 8px;margin-top:10px;gap:6px}
+  .u-bottle{min-height:108px}
+  .u-bottle-art{width:64px;height:76px}
+}
+
+/* ---------- v1.2 圖鑑 24 張 ---------- */
+@media (min-width:600px){.u-st-grid.many{grid-template-columns:repeat(6,1fr)}}
+
+/* ---------- v1.2 小屋梳妝台：香水多於 5 瓶排成前後兩排 ---------- */
+.u-house-shelf.two{flex-direction:column;align-items:stretch;justify-content:flex-end;gap:0}
+.u-house-row{position:relative;flex:0 0 50%;display:flex;align-items:flex-end;justify-content:center;gap:1px}
+.u-house-row.back::after{content:"";position:absolute;left:1%;right:1%;bottom:-1px;height:2px;border-radius:2px;background:rgba(255,255,255,.95);box-shadow:0 1px 0 rgba(214,150,170,.5)}
+.u-house-shelf.two .u-house-bottle{max-width:20%}
+.u-house-row.back .u-house-bottle{filter:saturate(.92)}

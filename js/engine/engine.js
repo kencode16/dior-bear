@@ -14,13 +14,15 @@
 //               'H' 橫掃熊掌 pawH   'V' 直掃熊掌 pawV   'B' 蜂巢炸彈 bomb   'P' 香水瓶 perfume
 //               'Y' 熊寶寶
 //               '.' 隨機普通物件（只避開和左邊、上面形成 3 連）
-//               '#' 'x' ' ' 不放 tile（洞與木箱格本來就不放；一般格放這些字元會留空，會在第一次掉落時補滿）
+//               '#' 'x' 'g' ' ' 不放 tile（洞、木箱、禮物盒格本來就不放；一般格放這些字元會留空，會在第一次掉落時補滿）
 //             有 board 時不會自動放 level.babies.start 的熊寶寶，也不保證開局有步可走（由測試自己決定）。
 //   items   : 直接指定本關物件 id 陣列（預設 CHAPTERS[level.chapter-1].items 前 level.colors 種）
 //
 // ─── 額外（合約外）方便除錯的方法 ─────────────────────────────────────────
-//   g.toStrings()  → 目前盤面轉成上面 board 格式的字串陣列（洞與木箱為 '#'、'x'，空格為 ' '）
+//   g.toStrings()  → 目前盤面轉成上面 board 格式的字串陣列（洞、木箱、禮物盒為 '#'、'x'、'g'，空格為 ' '）
+//   g.paintStrings() → v1.2 塗色層字串陣列（'#' 洞、'1' 已上色、'0' 未上色）
 //   g.babiesHome   → 已回家的熊寶寶數
+//   g.painted / g.paintNeed → v1.2 已上色格數／非洞格子數；g.giftLeft → 還沒打開的禮物盒個數
 //
 // ─── 規則細節（架構.md 沒寫死、這裡補充決定的部分）──────────────────────────
 //   1. trySwap 不合法時：兩格相鄰、都有 tile、都沒被 lock 鎖住 → steps = [[swap],[swapBack]]；
@@ -58,11 +60,45 @@
 //  18. 洗牌只動「沒有 lock 的普通 tile」，保持 tile id（moves 每項另外附 item 方便畫面）。
 //  19. collect 目標的 done 會封頂在 need。
 //
+// ─── v1.2 新規則（2026-11-14）────────────────────────────────────────────
+//  20. 舊關卡不變：沒有 paint（或全部是 0）、沒有 gift 的關卡完全不會走到新邏輯（painted＝0、giftLeft＝0），
+//      行為、分數與亂數序列和 v1.1 一模一樣（tests/engine/test_baseline.mjs 用 v1.1 記下的 1000 局比對）。
+//  21. 蠟筆塗色 paint：關卡圖層 paint: ['0010…']（'1' 開局就上色；洞上的 '1' 忽略）。g.cell().paint 為 0|1。
+//      只有「tile 被消除」的格子會上色：木箱、禮物盒、被鎖住而只解鎖的 tile、熊寶寶、本來就空著的格子都不上色。
+//      顏色不擴散、不消失，塗色完全不耗亂數。
+//      a. 配對：一組（相交的橫直連線合併成一組，L/T/十字算一組）消除前，組內任一格已上色（含組內被鎖住的格子）
+//         → 組內所有被消除的格子上色。同一波的不同組各自判斷。
+//      b. 特殊道具：發動當下所在格已上色 → 這次發動範圍內被消除的格子都上色。同一階段有多個道具一起發動時，
+//         被消除的格子只要在任一個「上色道具」的範圍內就上色（和處理順序無關）。
+//         被波及的道具在下一階段於原位發動，那時它的格子通常已被塗上，所以顏色會沿著連鎖傳下去。
+//         熊掌／香水和普通物件交換時，用「移過去之後」的格子判斷。
+//      c. 組合技：兩個道具的格子任一已上色 → 兩格都上色，組合效果全部算上色（香水＋熊掌／炸彈變身出來的
+//         每一個熊掌／炸彈也都算；沒上色時則各自依所在格判斷）。
+//      d. 慶祝時間同規則（盤面道具與步數變的熊掌，所在格已上色才塗）。
+//      e. 事件 {type:'paint', cells:[{r,c}]}：這一階段新上色的格子，緊接在造成它的 clear 之後（同一階段）。
+//         每格 +20（不乘連鎖倍率），算進該 clear 的 scoreGain。
+//      f. 目標 {type:'paint'}：need＝非洞格子總數（含木箱、禮物盒格；關卡寫的 need 忽略），done＝已上色格數。
+//         開局一格都沒上色的關卡永遠塗不起來（關卡要至少放一格 '1'）。
+//  22. 驚喜禮物盒 gift：關卡圖層 gift: ['0120…']（0–2 層；和木箱同一格時以木箱為準、gift 忽略；洞上忽略）。
+//      g.cell().gift 為 0–2；>0 時這格沒有 tile、不能交換、像木箱一樣擋掉落（正下方靠斜向補位）、
+//      不參與洗牌、不會被蜂蜜擴散，格子上的 lock 開局就清掉；雪可以壓在禮物盒底下（打開後格子的 tile 被消除時才融）。
+//      a. 受傷同木箱：上下左右相鄰有配對（每一波最多 −1）、或在特殊道具範圍內（每一階段最多 −1）。
+//         每少一層 {type:'obstacle', r, c, kind:'gift', left} ＋20。
+//      b. 歸 0 就打開：同一階段原地生成特殊道具，這時才抽亂數 _ri(10)：0–2 pawH、3–5 pawV、6–8 bomb、9 perfume
+//         （= 3:3:3:1）。事件 {type:'create', tile, r, c, from:'gift'}，打開 +60（加上最後一層的 +20）。
+//         同一階段事件順序：clear → paint → create（配對做出的）→ obstacle → create（from:'gift'）。
+//      c. 生成的道具不會自動發動；在「同一串」特殊道具連鎖裡也不會被後面的道具波及（不會一跑出來就被炸掉），
+//         連鎖結束後照常掉落，之後被點、被交換、或下一步被波及才發動。慶祝時間會把它當成盤面道具發動。
+//      d. 目標 {type:'clear', target:'gift'}：need＝禮物盒個數（不是層數），打開一個 done +1。
+//      e. 熊寶寶出口格若是禮物盒，要先打開寶寶才回得了家。
+//
 // ─── 給關卡設計（E）的提醒 ───────────────────────────────────────────────
 //   * 被毛線／蜂蜜鎖住的 tile 會擋住上方掉落；整排都被鎖（或蜂蜜擴散成一排）時，下方會暫時有空格補不到，
 //     直到解鎖。蜂蜜最好放在下半部、成小塊，旁邊留可以斜滑補位的格子。
 //   * 木箱正下方的格子只能靠左上／右上斜滑補位：不要讓木箱左右兩邊同時是洞或木箱。
 //   * 熊寶寶出口是該欄最下面的非洞格；出口欄最下面若是木箱，要先打掉木箱寶寶才回得了家。
+//   * 禮物盒和木箱一樣會擋掉落：不要讓禮物盒左右兩邊同時是洞、木箱或禮物盒；放在最上面一列時，正下方只能斜向補。
+//   * 塗色關要至少有一格開局就上色（paint '1'），不然永遠塗不起來；洞不算格子，木箱／禮物盒格要先打掉才塗得到。
 //   * 模擬器請用 createGame(level, { seed, events:false })：不產生事件，速度快約一倍。
 //     參考：8×8 六色貪婪一局 25 步約 7ms；加雪／木箱／蜂蜜／毛線約 25ms（Node v24，M 系列 Mac）。
 
@@ -97,6 +133,8 @@ class Game {
     this.snow = new Uint8Array(N);
     this.crate = new Uint8Array(N);
     this.lock = new Uint8Array(N);
+    this.paint = new Uint8Array(N);   // v1.2 蠟筆塗色 0|1
+    this.gift = new Uint8Array(N);    // v1.2 驚喜禮物盒 0–2
     this.tId = new Int32Array(N);
     this.tItem = new Int8Array(N).fill(-1);
     this.tSpec = new Uint8Array(N);
@@ -113,9 +151,22 @@ class Game {
         if (level.snow) this.snow[i] = +level.snow[r][c] || 0;
         if (level.crate) this.crate[i] = +level.crate[r][c] || 0;
         if (level.lock) { const ch = level.lock[r][c]; this.lock[i] = ch === 'y' ? 1 : ch === 'h' ? 2 : 0; }
+        if (level.paint) this.paint[i] = (level.paint[r] || '')[c] === '1' ? 1 : 0;
+        if (level.gift && !this.crate[i]) this.gift[i] = Math.min(2, +(level.gift[r] || '')[c] || 0);
       }
     }
-    for (let i = 0; i < N; i++) if (this.hole[i] || this.crate[i]) this.lock[i] = 0;
+    for (let i = 0; i < N; i++) if (this.hole[i] || this.crate[i] || this.gift[i]) this.lock[i] = 0;
+    // v1.2 塗色：need＝非洞格子數；painted＝已上色格數（painted 為 0 的關卡永遠不會跑塗色邏輯）
+    this.paintNeed = 0; this.painted = 0;
+    for (let i = 0; i < N; i++) { if (this.hole[i]) this.paint[i] = 0; else this.paintNeed++; this.painted += this.paint[i]; }
+    this.pmark = this.painted ? new Int32Array(N) : null;
+    this.pstamp = 0;
+    this._pc = null;
+    // v1.2 禮物盒：giftLeft＝還沒打開的個數；giftFresh 記「這一串特殊道具發動中剛打開生成的道具」（不被同一串波及）
+    this.giftLeft = 0;
+    for (let i = 0; i < N; i++) if (this.gift[i]) this.giftLeft++;
+    this.giftFresh = this.giftLeft ? new Int32Array(N) : null;
+    this.chain = 0;
 
     // 出口：每欄最下面一個非洞格
     this.exitRow = new Int16Array(w).fill(-1);
@@ -134,7 +185,7 @@ class Game {
     this.status = 'playing';
     this.combo = 0;
     this.collected = new Int32Array(this.K);
-    this.removed = { snow: 0, crate: 0, yarn: 0, honey: 0 };
+    this.removed = { snow: 0, crate: 0, yarn: 0, honey: 0, gift: 0 };
 
     // 目標
     this.goalDefs = (level.goals || []).map(g => {
@@ -144,6 +195,7 @@ class Game {
         if (d.idx < 0) throw new Error(`關卡 ${level.id} 的收集目標 ${g.item} 不在本關物件 ${this.items.join(',')} 之中（調整 colors）`);
       }
       if (g.type === 'baby' && !d.need) d.need = this.babyTotal;
+      if (g.type === 'paint') d.need = this.paintNeed;
       return d;
     });
 
@@ -168,7 +220,7 @@ class Game {
   _ri(n) { return (this._rand() * n) | 0; }
 
   // ───────── 盤面建立 ─────────
-  _playable(i) { return !this.hole[i] && !this.crate[i]; }
+  _playable(i) { return !this.hole[i] && !this.crate[i] && !this.gift[i]; }
   _wouldMatch(i, it) {
     const w = this.w, r = (i / w) | 0, c = i - r * w;
     if (c >= 2 && this._isItem(i - 1, it) && this._isItem(i - 2, it)) return true;
@@ -225,6 +277,7 @@ class Game {
     return {
       hole: !!this.hole[i], snow: this.snow[i], crate: this.crate[i], lock: LOCK[this.lock[i]],
       tile: this.tId[i] ? this._tileObj(i) : null,
+      paint: this.paint[i], gift: this.gift[i],
     };
   }
   _tileObj(i) {
@@ -243,11 +296,22 @@ class Game {
         const i = r * this.w + c;
         if (this.hole[i]) s += '#';
         else if (this.crate[i]) s += 'x';
+        else if (this.gift[i]) s += 'g';
         else if (!this.tId[i]) s += ' ';
         else if (this.tBaby[i]) s += 'Y';
         else if (this.tSpec[i]) s += ' HVBP'[this.tSpec[i]];
         else s += this.tItem[i];
       }
+      out.push(s);
+    }
+    return out;
+  }
+  /** 塗色層：'#' 洞、'1' 已上色、'0' 未上色 */
+  paintStrings() {
+    const out = [];
+    for (let r = 0; r < this.h; r++) {
+      let s = '';
+      for (let c = 0; c < this.w; c++) { const i = r * this.w + c; s += this.hole[i] ? '#' : this.paint[i] ? '1' : '0'; }
       out.push(s);
     }
     return out;
@@ -261,6 +325,7 @@ class Game {
     else if (target === 'crate') for (let i = 0; i < N; i++) n += this.crate[i];
     else if (target === 'yarn') for (let i = 0; i < N; i++) n += this.lock[i] === 1 ? 1 : 0;
     else if (target === 'honey') for (let i = 0; i < N; i++) n += this.lock[i] === 2 ? 1 : 0;
+    else if (target === 'gift') n = this.giftLeft;
     return n;
   }
   _goalsSnapshot() {
@@ -271,6 +336,7 @@ class Game {
         return { type: 'clear', target: d.target, need: done + this._remaining(d.target), done };
       }
       if (d.type === 'baby') return { type: 'baby', need: d.need, done: Math.min(d.need, this.babiesHome) };
+      if (d.type === 'paint') return { type: 'paint', need: this.paintNeed, done: this.painted };
       return { type: d.type, need: d.need || 0, done: 0 };
     });
   }
@@ -279,6 +345,7 @@ class Game {
       if (d.type === 'collect' && this.collected[d.idx] < d.need) return false;
       if (d.type === 'clear' && this._remaining(d.target) > 0) return false;
       if (d.type === 'baby' && this.babiesHome < d.need) return false;
+      if (d.type === 'paint' && this.painted < this.paintNeed) return false;
     }
     return true;
   }
@@ -293,6 +360,7 @@ class Game {
       if (d.type === 'collect') s += Math.min(d.need, this.collected[d.idx]) + ',';
       else if (d.type === 'clear') s += (this.removed[d.target] || 0) + ':' + this._remaining(d.target) + ',';
       else if (d.type === 'baby') s += this.babiesHome + ',';
+      else if (d.type === 'paint') s += this.painted + ',';
     }
     return s;
   }
@@ -463,7 +531,7 @@ class Game {
     }
     g.removed = { ...this.removed };
     g.goals = this.goals.map(x => ({ ...x }));
-    g.steps = null; g._cur = null;
+    g.steps = null; g._cur = null; g._pc = null;
     return g;
   }
 
@@ -646,12 +714,17 @@ class Game {
     const creates = [];
     const cleared = [];
     const obst = [];
+    const toPaint = this.painted > 0 ? [] : null;   // v1.2 塗色
+    let opened = null;                               // v1.2 這一波打開的禮物盒
     for (const g of groups) {
       const gClear = [];
+      let gPaint = false;
       for (const i of g.cells) {
+        if (toPaint !== null && this.paint[i]) gPaint = true;   // 消除前組內任一格已上色（含被鎖的格子）
         if (this.lock[i]) this._unlock(i, obst);
         else { clearSet.add(i); gClear.push(i); }
       }
+      if (gPaint) for (const i of gClear) toPaint.push(i);       // 只有 tile 被消除的格子上色
       // 相鄰的木箱與 lock
       for (const i of g.cells) {
         const r = (i / w) | 0, c = i - r * w;
@@ -661,6 +734,7 @@ class Game {
         for (const k of nb) {
           if (g.cells.has(k) || this.hole[k]) continue;
           if (this.crate[k] && this.mark[k] !== st) { this.mark[k] = st; this._hitCrate(k, obst); }
+          else if (this.gift[k]) { if (this.mark[k] !== st) { this.mark[k] = st; this._hitGift(k, obst, opened || (opened = [])); } }
           else if (this.lock[k] && this.tId[k]) this._unlock(k, obst);
         }
       }
@@ -693,18 +767,52 @@ class Game {
       if (ev) createEv.push({ type: 'create', tile: this._tileObj(cr.pos), ...this._rc(cr.pos) });
     }
     gain += obst.length * 20;
+    let painted = null, giftEv = null;
+    if (toPaint !== null && toPaint.length) { painted = this._paintCells(toPaint, -1); gain += painted.length * 20; }
+    if (opened !== null) { giftEv = this._openGifts(opened, 0); gain += opened.length * 60; }
     this.score += Math.round(gain);
     if (ev) {
       this._e({ type: 'clear', tiles: cleared, wave: Math.round((mult - 1) * 2) + 1, scoreGain: Math.round(gain) });
+      if (painted !== null && painted.length) this._e({ type: 'paint', cells: painted.map(i => this._rc(i)) });
       for (const e of createEv) this._e(e);
       for (const o of obst) this._e(o);
+      if (giftEv !== null) for (const e of giftEv) this._e(e);
     }
     this._flushInfo();
+  }
+
+  // v1.2 塗色：list 中（tile 已被消除的）格子上色；pst>=0 時只塗 pmark===pst 的格子。回傳新上色的格子
+  _paintCells(list, pst) {
+    const out = [];
+    for (const i of list) {
+      if (this.paint[i] || (pst >= 0 && this.pmark[i] !== pst)) continue;
+      this.paint[i] = 1; this.painted++; out.push(i);
+    }
+    return out;
+  }
+  // v1.2 禮物盒少一層；歸 0 時記到 opened（打開與生成道具由 _openGifts 處理）
+  _hitGift(i, obst, opened) {
+    this.gift[i]--;
+    obst.push(this.ev ? { type: 'obstacle', ...this._rc(i), kind: 'gift', left: this.gift[i] } : 1);
+    if (!this.gift[i]) { this.giftLeft--; this.removed.gift++; opened.push(i); }
+  }
+  // v1.2 打開禮物盒：原地生成特殊道具（pawH 3 : pawV 3 : bomb 3 : perfume 1，這裡才抽亂數）。chain>0 時這一串發動中不會被波及
+  _openGifts(opened, chain) {
+    const evs = this.ev ? [] : null;
+    for (const i of opened) {
+      const x = this._ri(10);
+      const kind = x < 3 ? PAW_H : x < 6 ? PAW_V : x < 9 ? BOMB : PERF;
+      this._put(i, -1, kind, false);
+      if (chain) this.giftFresh[i] = chain;
+      if (evs !== null) evs.push({ type: 'create', tile: this._tileObj(i), ...this._rc(i), from: 'gift' });
+    }
+    return evs;
   }
 
   // 消除 i 的 tile（普通或已被觸發的特殊道具）並處理雪、收集
   _clearTile(i, cause, cleared, obst) {
     if (!this.tId[i]) return;
+    if (this._pc !== null) this._pc.push(i);
     if (this.ev) { const { r, c } = this._rc(i); cleared.push({ id: this.tId[i], r, c, item: this.tItem[i] >= 0 ? this.items[this.tItem[i]] : null, special: SP[this.tSpec[i]], cause }); }
     else cleared.push(i);
     if (this.tItem[i] >= 0 && !this.tSpec[i]) this.collected[this.tItem[i]]++;
@@ -764,11 +872,15 @@ class Game {
   // 依「世代」發動特殊道具：每一代一個階段，被波及的特殊道具在下一代發動
   _activate(acts, mult) {
     const ev = this.ev;
+    const chain = ++this.chain;
+    const painting = this.painted > 0;
     let gen = acts;
     for (let guard = 0; gen.length && guard < 60; guard++) {
       this._ph();
       const st = ++this.stamp;
       const next = [], cleared = [], obst = [];
+      let opened = null, pst = -1;
+      if (painting) { this._pc = []; pst = ++this.pstamp; }
       // 先移除這一代自己的 tile（玩家發動的）
       for (const a of gen) {
         if (a.own && this.tId[a.i]) {
@@ -779,6 +891,8 @@ class Game {
       for (const a of gen) {
         const area = this._area(a);
         const cause = a.cause || CAUSE[a.t] || 'combo';
+        // 塗色：道具所在格（發動當下）已上色，或組合技帶 paint 旗標 → 範圍內被消除的格子都上色
+        if (painting && (a.paint || this.paint[a.i])) { this.pmark[a.i] = pst; for (const k of area) this.pmark[k] = pst; }
         if (ev) {
           const { r, c } = this._rc(a.i);
           if (a.t <= PERF) {
@@ -792,7 +906,9 @@ class Game {
           if (this.mark[k] === st) continue;
           this.mark[k] = st;
           if (this.crate[k]) { this._hitCrate(k, obst); continue; }
+          if (this.gift[k]) { this._hitGift(k, obst, opened || (opened = [])); continue; }
           if (!this.tId[k] || this.tBaby[k]) continue;
+          if (this.giftFresh !== null && this.giftFresh[k] === chain) continue;   // 剛從禮物盒跑出來的道具
           if (this.lock[k]) { this._unlock(k, obst); continue; }
           if (this.tSpec[k]) {
             const t = this.tSpec[k];
@@ -803,11 +919,16 @@ class Game {
           this._clearTile(k, cause, cleared, obst);
         }
       }
-      const gain = Math.round(cleared.length * 20 * mult + obst.length * 20);
+      let painted = null, giftEv = null, extra = 0;
+      if (painting) { painted = this._paintCells(this._pc, pst); this._pc = null; extra += painted.length * 20; }
+      if (opened !== null) { giftEv = this._openGifts(opened, chain); extra += opened.length * 60; }
+      const gain = Math.round(cleared.length * 20 * mult + obst.length * 20) + extra;
       this.score += gain;
       if (ev) {
         this._e({ type: 'clear', tiles: cleared, wave: Math.round((mult - 1) * 2) + 1, scoreGain: gain });
+        if (painted !== null && painted.length) this._e({ type: 'paint', cells: painted.map(i => this._rc(i)) });
         for (const o of obst) this._e(o);
+        if (giftEv !== null) for (const e of giftEv) this._e(e);
       }
       this._flushInfo();
       gen = next;
@@ -827,14 +948,18 @@ class Game {
     else if (ta === PERF || tb === PERF) kind = (isPaw(ta) || isPaw(tb)) ? 'perfumePaw' : 'perfumeBomb';
     this._ph();
     if (ev) this._e({ type: 'combo', kind, r, c });
+    // 塗色：兩個道具任一個在上色格 → 整個組合技都算上色
+    const cp = this.painted > 0 && !!(this.paint[pos] || this.paint[other]);
+    const paintBoth = () => (cp ? this._paintCells([other, pos], -1) : null);
     // 兩個特殊道具都先消耗掉
     const cleared = [], obst = [];
     this._clearTile(other, 'combo', cleared, obst);
     if (kind === 'perfumePaw' || kind === 'perfumeBomb') {
       const partner = ta === PERF ? tb : ta; // 熊掌或炸彈
       this._clearTile(pos, 'combo', cleared, obst);
+      const pc = paintBoth();
       const it = this._mostCommon();
-      const tf = [], acts = [{ i: pos, t: partner, item: -1, own: false }];
+      const tf = [], acts = [{ i: pos, t: partner, item: -1, own: false, paint: cp }];
       if (it >= 0) {
         if (ev) this._e({ type: 'activate', special: 'perfume', r, c, area: [], item: this.items[it] });
         for (let k = 0; k < this.N; k++) {
@@ -844,7 +969,7 @@ class Game {
           this.collected[it]++;
           this.tItem[k] = -1; this.tSpec[k] = t;
           if (ev) tf.push({ id: this.tId[k], ...this._rc(k), special: SP[t] });
-          acts.push({ i: k, t, item: -1, own: true, cause: 'combo' });
+          acts.push({ i: k, t, item: -1, own: true, cause: 'combo', paint: cp });
         }
       }
       // perfume 的 area 給畫面：被變身的格子
@@ -852,10 +977,11 @@ class Game {
         const act = this._cur.find(e => e.type === 'activate' && e.special === 'perfume');
         if (act) act.area = tf.map(t => ({ r: t.r, c: t.c }));
       }
-      const gain = Math.round(obst.length * 20);
+      const gain = Math.round(obst.length * 20) + (pc ? pc.length * 20 : 0);
       this.score += gain;
       if (ev) {
         this._e({ type: 'clear', tiles: cleared, wave: 1, scoreGain: gain });
+        if (pc && pc.length) this._e({ type: 'paint', cells: pc.map(i => this._rc(i)) });
         if (tf.length) this._e({ type: 'transform', tiles: tf });
         for (const o of obst) this._e(o);
       }
@@ -865,11 +991,16 @@ class Game {
       return;
     }
     this._clearTile(pos, 'combo', cleared, obst);
-    const gain = Math.round(obst.length * 20);
+    const pc = paintBoth();
+    const gain = Math.round(obst.length * 20) + (pc ? pc.length * 20 : 0);
     this.score += gain;
-    if (ev) { this._e({ type: 'clear', tiles: cleared, wave: 1, scoreGain: gain }); for (const o of obst) this._e(o); }
+    if (ev) {
+      this._e({ type: 'clear', tiles: cleared, wave: 1, scoreGain: gain });
+      if (pc && pc.length) this._e({ type: 'paint', cells: pc.map(i => this._rc(i)) });
+      for (const o of obst) this._e(o);
+    }
     const t = kind === 'pawPaw' ? A_CROSS : kind === 'pawBomb' ? A_CROSS3 : kind === 'bombBomb' ? A_BOMB5 : A_ALL;
-    this._resolve([{ i: pos, t, item: -1, own: false, cause: 'combo' }], null);
+    this._resolve([{ i: pos, t, item: -1, own: false, cause: 'combo', paint: cp }], null);
   }
 
   // 掉落＋熊寶寶回家，直到穩定
@@ -928,12 +1059,12 @@ class Game {
       for (let c = 0; c < w; c++) {
         for (let r = h - 1; r >= 0; r--) {
           const i = r * w + c;
-          if (this.hole[i] || this.crate[i] || this.tId[i]) continue;
+          if (this.tId[i] || this.hole[i] || this.crate[i] || this.gift[i]) continue;
           let found = -1, blocked = false;
           for (let r2 = r - 1; r2 >= 0; r2--) {
             const k = r2 * w + c;
             if (this.hole[k]) continue;
-            if (this.crate[k] || (this.tId[k] && this.lock[k])) { blocked = true; break; }
+            if (this.crate[k] || this.gift[k] || (this.tId[k] && this.lock[k])) { blocked = true; break; }
             if (this.tId[k]) { found = k; break; }
           }
           if (found >= 0) { move(found, i); changed = true; }
@@ -946,7 +1077,7 @@ class Game {
       for (let r = h - 1; r >= 1 && !diag; r--) {
         for (let c = 0; c < w && !diag; c++) {
           const i = r * w + c;
-          if (this.hole[i] || this.crate[i] || this.tId[i]) continue;
+          if (this.tId[i] || this.hole[i] || this.crate[i] || this.gift[i]) continue;
           for (const dc of [-1, 1]) {
             const cc = c + dc;
             if (cc < 0 || cc >= w) continue;

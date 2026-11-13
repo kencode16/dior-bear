@@ -11,6 +11,11 @@
 // 表情（expr）：
 //   丁噹熊 normal happy squint worried pout surprised wink yawn（打哈欠：閉眼、嘴巴張成小 O、眼角淚光；晚上用）
 //   大不溜 smug happy bark lick sneeze sad sleep（趴著睡：閉眼、鼻涕泡泡、頭上飄 Zzz；整隻狗換成趴姿）
+//
+// v1.2 新換裝：hat_schoolCap 學生小黃帽、cl_uniform 水手服（白袖＋袖口）、hat_parkHeadband 遊樂園髮箍、hd_cottonCandy 棉花糖；
+//   大不溜 dog_gradCap 博士帽、dog_partyHat 派對帽。
+//   金色限定（GOLD_ITEMS）：rib_goldBell、hat_goldTiara、dog_goldShades、col_goldBone ——華麗金色漸層＋一閃一閃的小閃光
+//   （閃光用 SVG 的 SMIL 動畫，所以當 <img> 顯示時也會動）；商店圖示多一層金色光暈底（class ch-icon-gold）。
 import { INK, SW, shine, dot, sparkle, star5, heartPath, uid } from './common.js';
 
 export const BEAR_VIEWBOX = '0 -14 236 274';
@@ -50,6 +55,31 @@ const goldGrad = id => `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><
 const qpt = (p0, p1, p2, t) => [(1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0], (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]];
 const f1 = n => +n.toFixed(1);
 
+// ---------- 金色限定（v1.2 困難模式獎勵）共用：更亮、更多層次的金色＋一閃一閃的小閃光 ----------
+export const GOLD_ITEMS = ['rib_goldBell', 'hat_goldTiara', 'dog_goldShades', 'col_goldBone'];
+/** 華麗金色漸層（斜向四段）。units 傳 userSpaceOnUse 時 x1..y2 用絕對座標 */
+const goldRich = (id, [x1, y1, x2, y2] = [0, 0, .8, 1], units = '') =>
+  `<linearGradient id="${id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${units ? ` gradientUnits="${units}"` : ''}>` +
+  `<stop offset="0" stop-color="#FFF8D6"/><stop offset=".3" stop-color="#FFE27A"/><stop offset=".66" stop-color="#F5BA38"/><stop offset="1" stop-color="#D38E22"/></linearGradient>`;
+/** 立體的球形金色（鈴鐺用） */
+const goldBall = id => `<radialGradient id="${id}" cx=".36" cy=".3" r=".78"><stop offset="0" stop-color="#FFFBE3"/><stop offset=".28" stop-color="#FFE68A"/><stop offset=".7" stop-color="#F2B232"/><stop offset="1" stop-color="#C98A1C"/></radialGradient>`;
+/** 小閃光：四角星一閃一閃（用 SMIL，inline 或當 <img> 顯示都會動；delay 讓幾顆錯開） */
+function twinkle(cx, cy, R, delay = 0, fill = '#FFFCEB') {
+  return `<g transform="translate(${f1(cx)} ${f1(cy)})"><path d="${sparkle(0, 0, R)}" fill="${fill}" stroke="#E2AE36" stroke-width="${f1(Math.max(.7, R * .17))}" ${SW}>` +
+    `<animateTransform attributeName="transform" type="scale" values="1;.3;1" keyTimes="0;.5;1" dur="1.9s" begin="${delay}s" repeatCount="indefinite"/>` +
+    `<animate attributeName="opacity" values="1;.35;1" keyTimes="0;.5;1" dur="1.9s" begin="${delay}s" repeatCount="indefinite"/></path></g>`;
+}
+/** 彈簧天線（髮箍上的小星星用）：從 (x0,y0) 到 (x1,y1) 的波浪線 */
+function springPath(x0, y0, x1, y1, n = 5, amp = 2.6) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L;
+  let d = `M${f1(x0)} ${f1(y0)}`;
+  for (let i = 0; i < n; i++) {
+    const tm = (i + .5) / n, t1 = (i + 1) / n, s = i % 2 ? -1 : 1;
+    d += ` Q${f1(x0 + dx * tm + nx * amp * 2 * s)} ${f1(y0 + dy * tm + ny * amp * 2 * s)} ${f1(x0 + dx * t1)} ${f1(y0 + dy * t1)}`;
+  }
+  return d;
+}
+
 // =====================================================================
 //                               丁噹熊
 // =====================================================================
@@ -83,8 +113,21 @@ const RIBBONS = {
   rib_honey:     { dark: '#D08A1E', light: '#FFD36E', bow: '#FFE6A6', knot: '#FFC94D', bell: 'round' },
   rib_heartBell: { dark: '#D94C77', light: '#FF8FAA', bow: '#FFA8BF', knot: '#FF7A9C', bell: 'heart' },
   rib_starBell:  { dark: '#5A9CCB', light: '#A9D8F5', bow: '#CBE8FA', knot: '#8CCBEA', bell: 'star' },
+  // 金色限定：金色緞帶＋大顆金鈴鐺（bow 用華麗金色漸層、附閃光）
+  rib_goldBell:  { dark: '#B9801A', light: '#FFD95E', bow: '#FFE68F', knot: '#F6CF66', bell: 'big', gold: true },
 };
 function bellArt(kind, gold) {
+  if (kind === 'big') {
+    // 金色大鈴鐺：比一般鈴鐺大一圈、球形漸層、雙溝紋、亮面＋兩顆閃光
+    const g = uid('chgb');
+    return `<g class="ch-bell"><defs>${goldBall(g)}</defs>` +
+      `<circle cx="110" cy="185.5" r="4.2" fill="none" stroke="#B9801A" stroke-width="3"/>` +
+      `<circle cx="110" cy="203" r="15.5" fill="url(#${g})" stroke="#B07414" stroke-width="3.4"/>` +
+      `<path d="M95.6 201 Q110 205.4 124.4 201 M96.4 206.4 Q110 210.8 123.6 206.4" fill="none" stroke="#B9801A" stroke-width="2.2" stroke-linecap="round"/>` +
+      `<circle cx="110" cy="212" r="2.9" fill="#8F5E10"/><path d="M110 213.5 L110 217.4" stroke="#8F5E10" stroke-width="2.2" stroke-linecap="round"/>` +
+      `<ellipse cx="103.4" cy="195.4" rx="4.6" ry="2.8" fill="#fff" opacity=".95" transform="rotate(-32 103.4 195.4)"/><circle cx="117.5" cy="196.5" r="1.5" fill="#fff" opacity=".9"/>` +
+      twinkle(129.5, 193, 5.2, 0) + twinkle(91.5, 214, 3.8, .9) + `</g>`;
+  }
   const top = `<circle cx="110" cy="185" r="3.6" fill="none" stroke="#C98F1F" stroke-width="2.6"/>`;
   let body;
   if (kind === 'heart') {
@@ -104,16 +147,24 @@ function bellArt(kind, gold) {
 }
 function ribbonArt(id, gold) {
   const r = RIBBONS[id] || RIBBONS.rib_pink;
-  return `<path d="M72 167 Q110 186 148 167" fill="none" stroke="${r.dark}" stroke-width="14" stroke-linecap="round"/>` +
-    `<path d="M72 167 Q110 186 148 167" fill="none" stroke="${r.light}" stroke-width="8.5" stroke-linecap="round"/>` +
+  let bow = r.bow, knot = r.knot, defs = '', satin = '', bowShine = '';
+  if (r.gold) {
+    const g = uid('chgr');
+    defs = `<defs>${goldRich(g)}</defs>`;
+    bow = knot = `url(#${g})`;
+    satin = `<path d="M74 166 Q110 184.5 146 166" fill="none" stroke="#FFF6CC" stroke-width="2.2" stroke-linecap="round" opacity=".85"/>`;
+    bowShine = shine(92, 175.5, 3.2, 1.8, -20, .9) + shine(128.5, 175.5, 3.2, 1.8, 20, .75) + twinkle(80, 166, 4.2, .5);
+  }
+  return defs + `<path d="M72 167 Q110 186 148 167" fill="none" stroke="${r.dark}" stroke-width="14" stroke-linecap="round"/>` +
+    `<path d="M72 167 Q110 186 148 167" fill="none" stroke="${r.light}" stroke-width="8.5" stroke-linecap="round"/>` + satin +
     `<path d="M110 178 L101 194 M110 178 L119 194" stroke="${r.dark}" stroke-width="7" stroke-linecap="round"/>` +
     `<path d="M110 178 L101 194 M110 178 L119 194" stroke="${r.light}" stroke-width="3.2" stroke-linecap="round"/>` +
     bellArt(r.bell, gold) +
-    `<path d="M110 178 C96 165 83 169 85 180 C87 191 100 189 110 178 Z" fill="${r.bow}" stroke="${r.dark}" stroke-width="3.6" stroke-linejoin="round"/>` +
-    `<path d="M110 178 C124 165 137 169 135 180 C133 191 120 189 110 178 Z" fill="${r.bow}" stroke="${r.dark}" stroke-width="3.6" stroke-linejoin="round"/>` +
+    `<path d="M110 178 C96 165 83 169 85 180 C87 191 100 189 110 178 Z" fill="${bow}" stroke="${r.dark}" stroke-width="3.6" stroke-linejoin="round"/>` +
+    `<path d="M110 178 C124 165 137 169 135 180 C133 191 120 189 110 178 Z" fill="${bow}" stroke="${r.dark}" stroke-width="3.6" stroke-linejoin="round"/>` +
     `<path d="M93 175 Q97 172 101 175" fill="none" stroke="${r.dark}" stroke-width="2" opacity=".6" stroke-linecap="round"/>` +
     `<path d="M119 175 Q123 172 127 175" fill="none" stroke="${r.dark}" stroke-width="2" opacity=".6" stroke-linecap="round"/>` +
-    `<circle cx="110" cy="178" r="6" fill="${r.knot}" stroke="${r.dark}" stroke-width="3"/>`;
+    `<circle cx="110" cy="178" r="6" fill="${knot}" stroke="${r.dark}" stroke-width="3"/>` + bowShine;
 }
 
 // ---------- 衣服（穿在身上，剪裁成身體形狀；有袖子的會把手臂染色） ----------
@@ -168,7 +219,32 @@ const CLOTHES = {
       `<circle cx="75" cy="211" r="1.8" fill="#8A6E45"/><circle cx="145" cy="211" r="1.8" fill="#8A6E45"/>` +
       `<circle cx="146" cy="194" r="6.5" fill="#A8E6B8" stroke="#4FA06A" stroke-width="2"/><path d="M143 194 L149 194 M146 191 L146 197" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>`,
   },
+  // 水手服（第 5 章）：白上衣＋粉藍水手領（白線）＋粉紅領巾＋百褶裙；袖口有水手領同色的袖口
+  cl_uniform: {
+    sleeve: ['#FFFFFF', '#93A9DE'], cuff: ['#9DB4EC', '#5F7CC4'],
+    art: () => `<rect x="40" y="140" width="140" height="120" fill="#FFFFFF"/>` +
+      `<path d="M64 196 Q66 208 74 216" fill="none" stroke="#EEF2FC" stroke-width="6" stroke-linecap="round"/>` +
+      // 百褶裙（腰線 y≈218，下擺被身體輪廓裁掉）
+      `<path d="M40 216 Q110 228 180 216 L180 260 L40 260 Z" fill="#9DB4EC" stroke="#5F7CC4" stroke-width="2.8" ${SW}/>` +
+      `<path d="M66 222 L60 242 M88 225.5 L85 244 M132 225.5 L135 244 M154 222 L160 242" stroke="#5F7CC4" stroke-width="2" opacity=".65" stroke-linecap="round"/>` +
+      `<path d="M44 230 Q110 241 176 230" fill="none" stroke="#fff" stroke-width="2" opacity=".75"/>` +
+      // 水手領（左右兩條 V 字領片，各一條白線）
+      `<path d="M64 168 L90 167 Q99 191 110 211 L102.5 221 Q86 194 58 180 Z" fill="#9DB4EC" stroke="#5F7CC4" stroke-width="2.8" ${SW}/>` +
+      `<path d="M156 168 L130 167 Q121 191 110 211 L117.5 221 Q134 194 162 180 Z" fill="#9DB4EC" stroke="#5F7CC4" stroke-width="2.8" ${SW}/>` +
+      `<path d="M64 180.5 Q86 192 102.5 215 M156 180.5 Q134 192 117.5 215" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>` +
+      // 領巾
+      `<path d="M105.5 216 L97.5 235 L106 232 L109 217 Z M114.5 216 L122.5 235 L114 232 L111 217 Z" fill="#FF8FAA" stroke="#E0668A" stroke-width="2.2" ${SW}/>` +
+      `<rect x="102.5" y="208.5" width="15" height="10" rx="3.6" fill="#FFA3BB" stroke="#E0668A" stroke-width="2.2"/>` +
+      `<path d="M106 211.5 L114 211.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".8"/>`,
+  },
 };
+/** 袖口（v1.2 水手服）：畫在手臂上、肉球前面。座標用手臂橢圓「沒旋轉前」的樣子，再套同樣的旋轉 */
+function cuffArt(side, [fill, line]) {
+  const band = side === 'l'
+    ? `<g transform="rotate(22 52 195)"><path d="M37.6 193.5 Q52 199 66.4 193.5 L66.6 199.5 Q52 205 37.4 199.5 Z" fill="${fill}" stroke="${line}" stroke-width="2.2" ${SW}/><path d="M38.5 196.6 Q52 202 65.5 196.6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></g>`
+    : `<g transform="rotate(40 172 150)"><path d="M157.9 140.5 Q172 134.5 186.1 140.5 L187 146 Q172 140 157 146 Z" fill="${fill}" stroke="${line}" stroke-width="2.2" ${SW}/><path d="M157.6 143.4 Q172 137.4 186.4 143.4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></g>`;
+  return band;
+}
 
 // ---------- 頭上配件（畫在頭的上面） ----------
 const HEADWEAR = {
@@ -223,6 +299,50 @@ const HEADWEAR = {
     `<path d="M140 52 C134 42 126 46 128 52 C130 58 136 56 140 52 Z M140 52 C146 42 154 46 152 52 C150 58 144 56 140 52 Z" fill="#FFB0C4" stroke="#E0668A" stroke-width="2.2" ${SW}/>` +
     `<circle cx="140" cy="52" r="3.2" fill="#FF8FAA" stroke="#E0668A" stroke-width="1.8"/>` +
     `<path d="M88 26 Q96 20 106 20" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" opacity=".7"/>`,
+  // 學生小黃帽（第 5 章）：圓圓的黃色小帽、一圈短帽簷、白色帽帶、星星校徽；坐在兩耳之間、微微歪頭
+  hat_schoolCap: () =>
+    `<g transform="rotate(-6 110 52)">` +
+    `<ellipse cx="110" cy="58" rx="53" ry="12.5" fill="#FFD54F" stroke="#D99A2B" stroke-width="4"/>` +
+    `<path d="M62.5 61.5 Q110 75 157.5 61.5" fill="none" stroke="#D99A2B" stroke-width="1.6" stroke-dasharray="3 3" opacity=".75"/>` +
+    `<path d="M72 58 Q70 20 110 18 Q150 20 148 58 Q110 65 72 58 Z" fill="#FFE27A" stroke="#D99A2B" stroke-width="4" ${SW}/>` +
+    `<path d="M91 22 Q84 38 84 56 M110 18.5 L110 50 M129 22 Q136 38 136 56" fill="none" stroke="#D99A2B" stroke-width="1.8" opacity=".45" stroke-linecap="round"/>` +
+    `<path d="M71.6 49 Q110 58 148.4 49 L148 58 Q110 66 72 58 Z" fill="#FFFFFF" stroke="#D99A2B" stroke-width="2.6" ${SW}/>` +
+    `<circle cx="110" cy="17" r="4.2" fill="#FFD54F" stroke="#D99A2B" stroke-width="2.6"/>` +
+    `<path d="M83 36 Q88 26 99 23" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" opacity=".7"/>` +
+    `<circle cx="131" cy="39" r="7.4" fill="#fff" stroke="#E0668A" stroke-width="2.4"/><path d="${star5(131, 39.6, 4.8, 2.1)}" fill="#FF8FAA" stroke="#E0668A" stroke-width=".8" ${SW}/>` +
+    `</g>`,
+  // 遊樂園髮箍（第 6 章）：薰衣草色髮箍沿著頭頂、兩根彈簧天線頂著小星星、中間一個粉紅點點蝴蝶結（不做成耳朵造型）
+  hat_parkHeadband: () => {
+    const band = 'M63 64 Q110 34 157 64';
+    const star = (x, y, rot) => `<g transform="rotate(${rot} ${x} ${y})"><path d="${star5(x, y, 10.5, 5.2)}" fill="#FFE68F" stroke="#D99A2B" stroke-width="2.8" ${SW}/>` +
+      shine(x - 3, y - 3.5, 1.8, 2.8, -25, .85) + `</g>`;
+    return `<path d="${springPath(82, 55, 75, 25)}" fill="none" stroke="#8E72D6" stroke-width="2.2" stroke-linecap="round"/>` +
+      `<path d="${springPath(138, 55, 145, 25)}" fill="none" stroke="#8E72D6" stroke-width="2.2" stroke-linecap="round"/>` +
+      star(74, 17, -12) + star(146, 17, 12) +
+      `<path d="${band}" fill="none" stroke="#8E72D6" stroke-width="12.5" stroke-linecap="round"/>` +
+      `<path d="${band}" fill="none" stroke="#C9B8F5" stroke-width="7.5" stroke-linecap="round"/>` +
+      `<path d="${band}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-dasharray=".1 7.5" opacity=".9"/>` +
+      `<path d="M110 47 C98 34 85 38 87 49 C89 60 101 58 110 47 Z" fill="#FFB0C4" stroke="#E0668A" stroke-width="3.2" ${SW}/>` +
+      `<path d="M110 47 C122 34 135 38 133 49 C131 60 119 58 110 47 Z" fill="#FFB0C4" stroke="#E0668A" stroke-width="3.2" ${SW}/>` +
+      [[94, 44], [97, 52], [126, 44], [123, 52], [91, 49.5], [129, 49.5]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.6" fill="#fff"/>`).join('') +
+      `<circle cx="110" cy="47" r="5.4" fill="#FF8FAA" stroke="#E0668A" stroke-width="2.6"/>` +
+      `<path d="${sparkle(160, 34, 4.5)}" fill="#FFF6C2" stroke="#E3BF72" stroke-width="1.2" ${SW}/>` +
+      `<path d="${sparkle(60, 33, 3.4)}" fill="#fff" stroke="#C9B8F5" stroke-width="1.2" ${SW}/>`;
+  },
+  // 金色小皇冠（困難模式第 4 章獎勵）：五個尖、頂端愛心寶石、珍珠、華麗金色漸層＋閃光；微微歪戴
+  hat_goldTiara: () => {
+    const g = uid('chgt');
+    return `<defs>${goldRich(g, [80, 18, 140, 58], 'userSpaceOnUse')}</defs><g transform="rotate(7 110 46)">` +
+      `<path d="M80 57 Q110 45 140 57 L139 50 L134 38.5 L127.5 45.5 L121 30.5 L115.5 38.5 L110 24 L104.5 38.5 L99 30.5 L92.5 45.5 L86 38.5 L81 50 Z" fill="url(#${g})" stroke="#B9801A" stroke-width="3" ${SW}/>` +
+      `<path d="M83 51.5 Q110 41 137 51.5" fill="none" stroke="#B9801A" stroke-width="1.6" opacity=".55" stroke-linecap="round"/>` +
+      `<path d="M88 47 L96 36 M101 41 L104.5 33" stroke="#FFFCEB" stroke-width="1.8" stroke-linecap="round" opacity=".9"/>` +
+      // 寶石與珍珠
+      `<ellipse cx="110" cy="44.5" rx="5.2" ry="6" fill="#FF8FB0" stroke="#D9577F" stroke-width="2"/><ellipse cx="108.4" cy="42.4" rx="1.6" ry="2.2" fill="#fff" opacity=".9"/>` +
+      `<circle cx="95" cy="49" r="2.8" fill="#A8E6B8" stroke="#4FA06A" stroke-width="1.4"/><circle cx="125" cy="49" r="2.8" fill="#C9B8F5" stroke="#8E72D6" stroke-width="1.4"/>` +
+      [[86, 38.5, 2.7], [99, 30.5, 3], [121, 30.5, 3], [134, 38.5, 2.7]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#FFFDF6" stroke="#D9B98A" stroke-width="1.3"/><circle cx="${f1(x - r * .35)}" cy="${f1(y - r * .35)}" r="${f1(r * .35)}" fill="#fff"/>`).join('') +
+      `<path d="${heartPath(110, 20.5, 5.4)}" fill="#FF8FB0" stroke="#D9577F" stroke-width="1.8" ${SW}/><circle cx="108.3" cy="18.8" r="1.2" fill="#fff"/>` +
+      `</g>` + twinkle(149, 32, 5.4, 0) + twinkle(73, 40, 4, .7) + twinkle(124, 14, 3.4, 1.3);
+  },
 };
 
 // ---------- 左手拿的東西（畫在左手臂下面，手掌會蓋在握把上） ----------
@@ -255,6 +375,18 @@ const HANDHELD = {
     `<circle cx="27" cy="219" r="7.6" fill="#FFF8EE" stroke="#4FA06A" stroke-width="2.6"/>` +
     `<circle cx="27" cy="219" r="4.2" fill="#5E7FA8"/><circle cx="25.4" cy="217.4" r="1.5" fill="#fff"/>` +
     `<circle cx="40" cy="210" r="1.8" fill="#FFE68F"/>`,
+  // 棉花糖（第 6 章）：條紋紙棒＋粉紅與薰衣草色兩色的蓬蓬雲朵、白色漩渦和糖粒亮點
+  hd_cottonCandy: () => {
+    const puffs = [[25, 148, 14], [12.5, 140, 11], [37, 137, 11], [23, 125, 12.5], [10, 154, 8.5], [39, 151, 9], [26, 160, 8.5], [34, 122, 7.5], [11, 127, 7]];
+    return `<path d="M47 222 L28 164" stroke="#E3B7CF" stroke-width="8.5" stroke-linecap="round"/>` +
+      `<path d="M47 222 L28 164" stroke="#FFFDF8" stroke-width="4.8" stroke-linecap="round"/>` +
+      `<path d="M47 222 L28 164" stroke="#FF9EB5" stroke-width="4.8" stroke-dasharray="3 5"/>` +
+      puffs.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#F08AAA" stroke="#F08AAA" stroke-width="6"/>`).join('') +
+      puffs.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#FFC6D6"/>`).join('') +
+      [[14, 147, 7], [20, 156, 6], [31, 131, 5.5], [9, 154, 4.5]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#DCCFFB"/>`).join('') +
+      `<path d="M16 132 Q22 124 29 129 Q33 134 27 137 M30 147 Q36 142 41 147 M12 160 Q16 156 21 160" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".85"/>` +
+      shine(17, 125, 3.2, 5, -35, .8) + dot(40, 136, 1.6, .95) + dot(22, 145, 1.4, .9) + dot(33, 158, 1.3, .9) + dot(8, 147, 1.2, .9);
+  },
 };
 
 // ---------- 丁噹熊表情（眼睛、眉毛、嘴巴、附加物） ----------
@@ -313,6 +445,7 @@ export function bearSVG({ expr = 'normal', outfit = {}, perfumeColor = '#FF9EB5'
     ? BEAR_EXPRS.map(e => `<g class="ch-x ch-x-${e}">${BEAR_FACES[e]()}</g>`).join('')
     : BEAR_FACES[expr]();
   const pawTip = (cx, cy) => cl?.sleeve ? `<circle cx="${cx}" cy="${cy}" r="9.5" fill="${BC}" stroke="${BO}" stroke-width="5"/>` : '';
+  const cuff = side => cl?.cuff ? cuffArt(side, cl.cuff) : '';
   const inner =
     `<defs>${goldGrad(ids.gold)}<linearGradient id="${ids.glass}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${mid}"/></linearGradient>` +
     `<clipPath id="${ids.clip}"><ellipse cx="110" cy="192" rx="58.5" ry="47.5"/></clipPath></defs>` +
@@ -328,7 +461,7 @@ export function bearSVG({ expr = 'normal', outfit = {}, perfumeColor = '#FF9EB5'
     (cl ? `<g clip-path="url(#${ids.clip})">${cl.art()}</g>` : '') +
     `<ellipse cx="110" cy="192" rx="60" ry="49" fill="none" stroke="${BO}" stroke-width="6"/>` +
     // 左手（含手上拿的東西）
-    `<g class="ch-arm-l">${hand}<ellipse cx="52" cy="195" rx="15.5" ry="23" fill="${sleeve}" stroke="${sleeveO}" stroke-width="6" transform="rotate(22 52 195)"/>${pawTip(44.5, 213.5)}</g>` +
+    `<g class="ch-arm-l">${hand}<ellipse cx="52" cy="195" rx="15.5" ry="23" fill="${sleeve}" stroke="${sleeveO}" stroke-width="6" transform="rotate(22 52 195)"/>${cuff('l')}${pawTip(44.5, 213.5)}</g>` +
     // 頭
     `<g class="ch-head">` +
     `<circle cx="57" cy="60" r="27" fill="${BC}" stroke="${BO}" stroke-width="6"/><circle cx="57" cy="60" r="14" fill="#FFC4D0"/>` +
@@ -345,7 +478,7 @@ export function bearSVG({ expr = 'normal', outfit = {}, perfumeColor = '#FF9EB5'
     ribbonArt(outfit.ribbon, ids.gold) +
     // 右手舉香水
     `<g class="ch-arm-hold"><g transform="translate(164.2 66.6) scale(.72)">${perfumeBottle(ids, perfumeColor)}</g>` +
-    `<ellipse cx="172" cy="150" rx="15.5" ry="24" fill="${sleeve}" stroke="${sleeveO}" stroke-width="6" transform="rotate(40 172 150)"/>${pawTip(186.5, 132)}</g>`;
+    `<ellipse cx="172" cy="150" rx="15.5" ry="24" fill="${sleeve}" stroke="${sleeveO}" stroke-width="6" transform="rotate(40 172 150)"/>${cuff('r')}${pawTip(186.5, 132)}</g>`;
   return wrap(inner, BEAR_VIEWBOX, live ? 'ch-live ch-bear-svg' : 'ch-bear-svg', live ? `data-expr="${expr}"` : '');
 }
 
@@ -390,6 +523,23 @@ const COLLARS = {
     },
     front: id => `<circle cx="80" cy="79" r="6" fill="url(#${id})" stroke="#B9801A" stroke-width="1.8"/><path d="${star5(80, 79, 3.6, 1.6)}" fill="#FFF6C2" stroke="#B9801A" stroke-width=".8"/><ellipse cx="77.6" cy="76.4" rx="1.5" ry=".9" fill="#fff" opacity=".85"/>`,
   },
+  // 金骨頭項圈（困難模式第 2 章獎勵）：金色帶子＋小鉚釘，前面掛一根亮晶晶的金骨頭
+  col_goldBone: {
+    band: () => `<path d="M57 64 Q80 78 103 63" fill="none" stroke="#B07414" stroke-width="10" stroke-linecap="round"/>` +
+      `<path d="M57 64 Q80 78 103 63" fill="none" stroke="#F7C948" stroke-width="6" stroke-linecap="round"/>` +
+      `<path d="M58 62.6 Q80 76 102 61.6" fill="none" stroke="#FFF3C0" stroke-width="1.6" stroke-linecap="round" opacity=".95"/>` +
+      [.14, .3, .7, .86].map(t => { const [x, y] = qpt(...CP, t); return `<circle cx="${f1(x)}" cy="${f1(y)}" r="1.7" fill="#FFFBE6" stroke="#B07414" stroke-width=".9"/>`; }).join(''),
+    front: () => {
+      const g = uid('chgo');
+      const ends = [[71.2, 78.6], [71.2, 84.4], [88.8, 78.6], [88.8, 84.4]];
+      const shape = (extra) => ends.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.5" ${extra}/>`).join('') + `<rect x="71" y="78.2" width="18" height="6.6" ${extra}/>`;
+      return `<defs>${goldRich(g, [68, 75, 92, 88], 'userSpaceOnUse')}</defs>` +
+        `<path d="M80 72.5 L80 77.5" stroke="#B07414" stroke-width="1.8" stroke-linecap="round"/><circle cx="80" cy="72.8" r="2" fill="none" stroke="#B07414" stroke-width="1.6"/>` +
+        shape('fill="#B07414" stroke="#B07414" stroke-width="3.6"') + shape(`fill="url(#${g})"`) +
+        `<path d="M72.5 79.6 Q80 78.2 87.5 79.6" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".9"/>` +
+        `<circle cx="70.4" cy="77.6" r="1.1" fill="#fff" opacity=".95"/>` + twinkle(93.5, 75, 3.6, .4);
+    },
+  },
 };
 
 // ---------- 大不溜頭上／臉上配件 ----------
@@ -419,6 +569,54 @@ const DOG_HEADWEAR = {
     `<circle cx="80" cy="18" r="2.6" fill="#FF8FAA" stroke="#E0668A" stroke-width="1.2"/><circle cx="72" cy="18" r="1.8" fill="#A8E6B8" stroke="#4FA06A" stroke-width="1"/><circle cx="88" cy="18" r="1.8" fill="#C9B8F5" stroke="#8E72D6" stroke-width="1"/>` +
     `<circle cx="65" cy="3" r="1.8" fill="#FFF6C2" stroke="#C98F1F" stroke-width="1"/><circle cx="80" cy="-2" r="2" fill="#FFF6C2" stroke="#C98F1F" stroke-width="1"/><circle cx="95" cy="3" r="1.8" fill="#FFF6C2" stroke="#C98F1F" stroke-width="1"/>` +
     `<path d="M70 12 L72 7" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".8"/></g>`,
+  // 博士帽（第 5 章）：歪戴的方帽、金色帽穗垂在一邊，很拽的學霸
+  dog_gradCap: () =>
+    `<g transform="rotate(-9 80 14)">` +
+    `<path d="M63.5 23.5 Q62.5 12 80 11 Q97.5 12 96.5 23.5 Q80 27.5 63.5 23.5 Z" fill="#5F6AA8" stroke="#3E4778" stroke-width="2.8" ${SW}/>` +
+    `<path d="M66 20.5 Q80 24 94 20.5" fill="none" stroke="#8C96D2" stroke-width="1.6" opacity=".8"/>` +
+    `<path d="M51 9 L80 17.5 L109 9 L109 12.4 L80 21 L51 12.4 Z" fill="#4A5390" stroke="#3E4778" stroke-width="2.4" ${SW}/>` +
+    `<path d="M80 0.5 L109 9 L80 17.5 L51 9 Z" fill="#7C87C8" stroke="#3E4778" stroke-width="2.6" ${SW}/>` +
+    `<path d="M60 8.6 L80 2.8 L86 4.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>` +
+    `<path d="M80 9 Q95 9.5 103 11 L103 21" fill="none" stroke="#F6CF66" stroke-width="2" stroke-linecap="round"/>` +
+    `<circle cx="80" cy="9" r="2.6" fill="#F6CF66" stroke="#C98F1F" stroke-width="1.4"/>` +
+    `<path d="M100.6 20.5 L105.4 20.5 L107 31 Q103 33 99 31 Z" fill="#F6CF66" stroke="#C98F1F" stroke-width="1.6" ${SW}/>` +
+    `<path d="M101.6 24 L101.2 30.6 M103 24 L103 31.4 M104.4 24 L104.8 30.6" stroke="#C98F1F" stroke-width=".9" stroke-linecap="round" opacity=".7"/>` +
+    `<rect x="99.8" y="19" width="6.4" height="3.2" rx="1.4" fill="#FFE68F" stroke="#C98F1F" stroke-width="1.2"/>` +
+    `</g>`,
+  // 派對帽（第 6 章）：歪戴的粉紅尖帽，薄荷和蜂蜜黃條紋、白色點點、蓬蓬毛球、帽緣花邊
+  dog_partyHat: () => {
+    const c = uid('chph');
+    const cone = 'M66.5 21 L80 -8 L93.5 21 Q80 25.5 66.5 21 Z';
+    return `<g transform="rotate(13 80 20)"><defs><clipPath id="${c}"><path d="${cone}"/></clipPath></defs>` +
+      `<path d="${cone}" fill="#FFB0C4"/>` +
+      `<g clip-path="url(#${c})"><path d="M60 13 Q80 18 100 13" fill="none" stroke="#A8E6B8" stroke-width="5.4"/><path d="M62 2.5 Q80 7 98 2.5" fill="none" stroke="#FFE68F" stroke-width="4.6"/>` +
+      [[74, 18], [86, 17.5], [80, 9.5], [76, 0], [84, 1]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.5" fill="#fff"/>`).join('') + `</g>` +
+      `<path d="${cone}" fill="none" stroke="#E0668A" stroke-width="2.6" ${SW}/>` +
+      `<path d="M66 21.5 q2.25 3.6 4.5 0 q2.25 3.6 4.5 0 q2.25 3.6 4.5 0 q2.25 3.6 4.5 0 q2.25 3.6 4.5 0 q2.25 3.6 4.5 0" fill="#fff" stroke="#E3B7CF" stroke-width="1.6" stroke-linejoin="round"/>` +
+      `<path d="M71.5 15 L77 1" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".6"/>` +
+      `<circle cx="80" cy="-9" r="5" fill="#FFF4FA" stroke="#E3B7CF" stroke-width="2.2"/>` +
+      `<path d="M77 -11 L79 -9 M81.5 -12 L82.5 -9.5 M78 -6.5 L80.5 -6" stroke="#E3B7CF" stroke-width="1.2" stroke-linecap="round"/>` +
+      `</g>` +
+      `<rect x="49" y="8" width="5.5" height="3" rx="1" fill="#C9B8F5" transform="rotate(-25 51.7 9.5)"/><rect x="104" y="20" width="5" height="2.8" rx="1" fill="#8CCBEA" transform="rotate(30 106.5 21.4)"/>` +
+      `<circle cx="58" cy="2" r="1.6" fill="#FFD36E"/>`;
+  },
+  // 金框墨鏡（困難模式第 5 章獎勵）：粗粗的華麗金框飛行員墨鏡、梅紫色漸層鏡片、雙鼻樑、閃光
+  dog_goldShades: () => {
+    const g = uid('chgs'), l = uid('chgl');
+    const L = 'M56.5 41.2 Q67 39 78 41.6 Q79 54.5 69.4 56.8 Q58 57.4 56.5 46 Z';
+    const R = 'M103.5 41.2 Q93 39 82 41.6 Q81 54.5 90.6 56.8 Q102 57.4 103.5 46 Z';
+    return `<defs>${goldRich(g, [54, 36, 106, 58], 'userSpaceOnUse')}<linearGradient id="${l}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B2131"/><stop offset="1" stop-color="#6A3C5E"/></linearGradient></defs>` +
+      `<path d="M56.5 42.6 L50.5 39.4 M103.5 42.6 L109.5 39.4" stroke="#B07414" stroke-width="4" stroke-linecap="round"/>` +
+      `<path d="M56.5 42.6 L50.5 39.4 M103.5 42.6 L109.5 39.4" stroke="url(#${g})" stroke-width="2.2" stroke-linecap="round"/>` +
+      `<path d="${L}" fill="url(#${l})"/><path d="${R}" fill="url(#${l})"/>` +
+      `<path d="M60 45 L66 51.5 M63.5 43.5 L70.5 50.8 M85.5 45 L91.5 51.5 M89 43.5 L96 50.8" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".5"/>` +
+      `<path d="${L}" fill="none" stroke="#B07414" stroke-width="5" stroke-linejoin="round"/><path d="${R}" fill="none" stroke="#B07414" stroke-width="5" stroke-linejoin="round"/>` +
+      `<path d="${L}" fill="none" stroke="url(#${g})" stroke-width="2.8" stroke-linejoin="round"/><path d="${R}" fill="none" stroke="url(#${g})" stroke-width="2.8" stroke-linejoin="round"/>` +
+      `<path d="M77.5 44.2 Q80 41.6 82.5 44.2 M76.5 40.4 Q80 38.8 83.5 40.4" fill="none" stroke="#B07414" stroke-width="3.6" stroke-linecap="round"/>` +
+      `<path d="M77.5 44.2 Q80 41.6 82.5 44.2 M76.5 40.4 Q80 38.8 83.5 40.4" fill="none" stroke="#FFE27A" stroke-width="1.6" stroke-linecap="round"/>` +
+      `<circle cx="58.6" cy="42" r="1" fill="#fff"/><circle cx="101.4" cy="42" r="1" fill="#fff"/>` +
+      twinkle(104.5, 35.5, 4.6, 0) + twinkle(56, 55.5, 3.2, .8);
+  },
 };
 
 // ---------- 大不溜表情：eyes（嘴套之前）、mouth（嘴套與鼻子之後） ----------
@@ -577,6 +775,10 @@ const ICON_BOX = {
   hd_honeySpoon: [6, 154, 52, 226], hd_bouquet: [14, 152, 78, 232], hd_balloon: [-2, 102, 46, 176], hd_camera: [10, 194, 48, 232],
   ribbon: [66, 158, 154, 216],
   dog_sunglasses: [50, 38, 110, 58], dog_cap: [36, 2, 104, 31], dog_bandana: [42, 8, 106, 38], dog_crown: [60, -6, 100, 24],
+  // v1.2
+  hat_schoolCap: [54, 10, 166, 74], hat_parkHeadband: [58, 4, 166, 70], hat_goldTiara: [70, 8, 154, 62],
+  hd_cottonCandy: [-2, 112, 52, 224], rib_goldBell: [66, 158, 154, 222],
+  dog_gradCap: [48, -4, 112, 34], dog_partyHat: [56, -16, 104, 28], dog_goldShades: [48, 32, 112, 60],
 };
 function fitBox([x0, y0, x1, y1], inner, size = 78) {
   const w = x1 - x0, h = y1 - y0, s = size / Math.max(w, h);
@@ -615,6 +817,15 @@ const CLOTHES_ICON = {
     `<rect x="24" y="56" width="16" height="15" rx="3" fill="#DCC48E" stroke="#B39565" stroke-width="2"/><path d="M24 61 L40 61" stroke="#B39565" stroke-width="2"/>` +
     `<rect x="60" y="56" width="16" height="15" rx="3" fill="#DCC48E" stroke="#B39565" stroke-width="2"/><path d="M60 61 L76 61" stroke="#B39565" stroke-width="2"/>` +
     `<circle cx="66" cy="40" r="5.6" fill="#A8E6B8" stroke="#4FA06A" stroke-width="1.8"/><path d="M63.4 40 L68.6 40 M66 37.4 L66 42.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`,
+  cl_uniform: () => `<path d="${SHIRT}" fill="#fff" stroke="#93A9DE" stroke-width="3" ${SW}/>` +
+    `<path d="M16.2 36.4 L11 43 Q9 47 13 50 L20.2 54.8 Z M83.8 36.4 L89 43 Q91 47 87 50 L79.8 54.8 Z" fill="#9DB4EC" stroke="#5F7CC4" stroke-width="2.4" ${SW}/>` +
+    `<path d="M14.2 40.4 L17.2 52.4 M85.8 40.4 L82.8 52.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>` +
+    `<path d="M24 78 L76 78" stroke="#9DB4EC" stroke-width="5"/><path d="M24 75.4 L76 75.4" stroke="#5F7CC4" stroke-width="1.4" opacity=".7"/>` +
+    `<path d="M39 20 L50 46 L46 53 L25 27 Q29 20 34 20 Z" fill="#9DB4EC" stroke="#5F7CC4" stroke-width="2.6" ${SW}/>` +
+    `<path d="M61 20 L50 46 L54 53 L75 27 Q71 20 66 20 Z" fill="#9DB4EC" stroke="#5F7CC4" stroke-width="2.6" ${SW}/>` +
+    `<path d="M29.5 26.5 L47.2 48.4 M70.5 26.5 L52.8 48.4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M47 53 L40.5 69 L47.5 66.5 L49.5 54 Z M53 53 L59.5 69 L52.5 66.5 L50.5 54 Z" fill="#FF8FAA" stroke="#E0668A" stroke-width="2" ${SW}/>` +
+    `<rect x="44" y="46.5" width="12" height="8.4" rx="3" fill="#FFA3BB" stroke="#E0668A" stroke-width="2"/>`,
 };
 // 項圈單獨畫成一圈
 function collarIcon(id, gold) {
@@ -625,6 +836,9 @@ function collarIcon(id, gold) {
     col_bowtie: `<ellipse cx="50" cy="48" rx="33" ry="22" fill="none" stroke="#C8486E" stroke-width="6.5"/><ellipse cx="50" cy="48" rx="33" ry="22" fill="none" stroke="#FF8FAA" stroke-width="3"/>`,
     col_pearls: Array.from({ length: 22 }, (_, i) => { const a = i / 22 * Math.PI * 2; const x = 50 + Math.cos(a) * 33, y = 48 + Math.sin(a) * 22; return `<circle cx="${f1(x)}" cy="${f1(y)}" r="4" fill="#FFFDF8" stroke="#C9B9AE" stroke-width="1.3"/><circle cx="${f1(x - 1.2)}" cy="${f1(y - 1.2)}" r="1.1" fill="#fff"/>`; }).join(''),
     col_goldChain: Array.from({ length: 26 }, (_, i) => { const a = i / 26 * Math.PI * 2; const x = 50 + Math.cos(a) * 33, y = 48 + Math.sin(a) * 22; const rot = a * 180 / Math.PI + 90; return `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${i % 2 ? 2.4 : 4}" ry="${i % 2 ? 3.8 : 2.4}" fill="none" stroke="#D9A52B" stroke-width="2.4" transform="rotate(${f1(rot)} ${f1(x)} ${f1(y)})"/>`; }).join(''),
+    col_goldBone: `<ellipse cx="50" cy="48" rx="33" ry="22" fill="none" stroke="#B07414" stroke-width="11"/><ellipse cx="50" cy="48" rx="33" ry="22" fill="none" stroke="#F7C948" stroke-width="6.6"/>` +
+      `<path d="M21 42 A33 22 0 0 1 79 42" fill="none" stroke="#FFF3C0" stroke-width="1.8" stroke-linecap="round" transform="translate(0 -2.4)"/>` +
+      [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const a = Math.PI * (1.12 + i * .11); return `<circle cx="${f1(50 + Math.cos(a) * 33)}" cy="${f1(48 + Math.sin(a) * 22)}" r="2" fill="#FFFBE6" stroke="#B07414" stroke-width="1"/>`; }).join(''),
   }[id] || '';
   // 吊飾：用原本的座標（中心約 80,76）平移放大到 (50,74)
   const front = `<g transform="translate(50 72) scale(1.9) translate(-80 -76)">${c.front(gold)}</g>`;
@@ -640,10 +854,23 @@ export function itemIconSVG(itemId) {
     `<path d="${heartPath(50, 36, 25)}" fill="#C9B8F5" stroke="#8E72D6" stroke-width="3.6" ${SW}/>` + shine(38, 26, 4.4, 7.6, -25, .8) + dot(57, 22, 2.4, .9);
   else if (HEADWEAR[itemId]) inner = fitBox(ICON_BOX[itemId], HEADWEAR[itemId]());
   else if (HANDHELD[itemId]) inner = fitBox(ICON_BOX[itemId], HANDHELD[itemId]());
-  else if (RIBBONS[itemId]) inner = fitBox(ICON_BOX.ribbon, ribbonArt(itemId, gold), 76);
+  else if (RIBBONS[itemId]) inner = fitBox(ICON_BOX[itemId] || ICON_BOX.ribbon, ribbonArt(itemId, gold), RIBBONS[itemId].gold ? 82 : 76);
   else if (CLOTHES_ICON[itemId]) inner = CLOTHES_ICON[itemId]();
   else if (DOG_HEADWEAR[itemId]) inner = fitBox(ICON_BOX[itemId], DOG_HEADWEAR[itemId](gold));
   else if (COLLARS[itemId]) inner = collarIcon(itemId, gold);
   else inner = `<circle cx="50" cy="48" r="30" fill="#FFE4EB" stroke="#F3A6BF" stroke-width="3"/><path d="${heartPath(50, 48, 12)}" fill="#FF9EB5"/>`;
-  return wrap(`<defs>${goldGrad(gold)}</defs>${iconShadow}${inner}`, '0 0 100 100', 'ch-icon');
+  return wrap(`<defs>${goldGrad(gold)}</defs>${GOLD_ITEMS.includes(itemId) ? goldGlow() : ''}${iconShadow}${inner}`, '0 0 100 100', `ch-icon${GOLD_ITEMS.includes(itemId) ? ' ch-icon-gold' : ''}`);
+}
+/** 金色限定圖示的底：淡金色光暈＋光芒＋角落閃光，小尺寸也一眼看出是特別的 */
+function goldGlow() {
+  const g = uid('chgw');
+  let rays = '';
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI / 6 + .26, r0 = 30, r1 = i % 2 ? 41 : 46;
+    rays += `M${f1(50 + Math.cos(a) * r0)} ${f1(48 + Math.sin(a) * r0)} L${f1(50 + Math.cos(a) * r1)} ${f1(48 + Math.sin(a) * r1)} `;
+  }
+  return `<defs><radialGradient id="${g}"><stop offset="0" stop-color="#FFF3B8" stop-opacity=".95"/><stop offset=".62" stop-color="#FFE48A" stop-opacity=".55"/><stop offset="1" stop-color="#FFE48A" stop-opacity="0"/></radialGradient></defs>` +
+    `<circle cx="50" cy="48" r="47" fill="url(#${g})"/>` +
+    `<path d="${rays}" stroke="#F5C64A" stroke-width="2.6" stroke-linecap="round" opacity=".55"/>` +
+    twinkle(13, 14, 5.6, .2) + twinkle(88, 80, 4.4, 1.1) + twinkle(89, 15, 3.4, .6);
 }

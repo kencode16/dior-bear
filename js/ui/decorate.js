@@ -1,4 +1,5 @@
 // 布置小屋：選位置 → 選家具（可先試擺）→ 買／擺／收起來。
+// v1.2：金色限定家具（reward，不能買）還沒拿到時顯示金色鎖＋「困難模式第 N 章獎勵」，可以先試擺看看。
 import { furnitureSVG } from '../art/collections.js';
 import { mountHouse } from './house.js';
 import { topBar, janitor, svgImg, safe, esc, starIcon, ICONS, bearSay } from './uikit.js';
@@ -11,6 +12,7 @@ export default {
     app.audio.playMusic('home');
     const { HOUSE_SLOTS, FURNITURE } = app.items;
     const s = app.save;
+    safe(() => s.claimRewards?.());   // 已達成但還沒發的金色限定先發掉
     let slot = params.slot || HOUSE_SLOTS.find(h => h.id === 'rug')?.id || HOUSE_SLOTS[0].id;
     let trying = null;
 
@@ -46,10 +48,13 @@ export default {
       for (const it of FURNITURE.filter(f => f.slot === slot)) {
         const owned = s.isOwned(it.id);
         const here = placed === it.id;
-        const locked = !owned && it.chapter > maxCh;
-        const cls = ['u-item', 'furn', here ? 'wearing' : '', owned ? 'owned' : '', locked ? 'locked' : '', trying === it.id ? 'trying' : '', !owned && !locked && s.canBuy(it.id) ? 'canbuy' : ''].filter(Boolean).join(' ');
+        const gold = !!it.reward;
+        const goldLocked = gold && !owned;
+        const locked = !owned && !gold && it.chapter > maxCh;
+        const cls = ['u-item', 'furn', here ? 'wearing' : '', owned ? 'owned' : '', locked ? 'locked' : '', gold ? 'gold' : '', goldLocked ? 'goldlocked' : '', trying === it.id ? 'trying' : '', !owned && !locked && !gold && s.canBuy(it.id) ? 'canbuy' : ''].filter(Boolean).join(' ');
         const tag = here ? `<span class="u-item-tag ok">${ICONS.check}擺著</span>`
-          : owned ? '<span class="u-item-tag">已擁有</span>'
+          : owned ? `<span class="u-item-tag">${gold ? '✦ 金色限定' : '已擁有'}</span>`
+          : goldLocked ? `<span class="u-item-tag goldlock">${ICONS.goldLock}<span>困難模式<br>第 ${it.reward.hardChapter} 章獎勵</span></span>`
           : locked ? `<span class="u-item-tag lock">${ICONS.lock}第 ${it.chapter} 章</span>`
           : `<span class="u-item-tag price">${starIcon('u-star sm')}${it.price}</span>`;
         html += `<button class="${cls}" data-id="${it.id}"><span class="u-item-art">${safe(() => svgImg(furnitureSVG(it.id), '', it.name))}</span>` +
@@ -62,7 +67,9 @@ export default {
         const it = FURNITURE.find(f => f.id === trying);
         const enough = s.starsAvailable() >= it.price;
         bb.hidden = false;
-        bb.innerHTML = `<div class="u-buybar-in card"><span class="u-buybar-txt">試擺：<b>${esc(it.name)}</b></span>` +
+        if (it.reward) bb.innerHTML = `<div class="u-buybar-in card gold"><span class="u-buybar-txt">試擺：<b>${esc(it.name)}</b><small>${ICONS.goldLock}困難模式第 ${it.reward.hardChapter} 章 10 關全破就送你！</small></span>` +
+          `<button class="btn ghost u-buybar-no" data-act="cancel">好～</button></div>`;
+        else bb.innerHTML = `<div class="u-buybar-in card"><span class="u-buybar-txt">試擺：<b>${esc(it.name)}</b></span>` +
           `<button class="btn ghost u-buybar-no" data-act="cancel">不要</button>` +
           `<button class="btn ${enough ? 'honey' : 'ghost dim'}" data-act="buy">${starIcon('u-star sm')}${it.price} 買下來</button></div>`;
       }
@@ -83,6 +90,13 @@ export default {
         render();
         return;
       }
+      if (it.reward) {
+        app.audio.sfx('select');
+        trying = trying === it.id ? null : it.id;
+        render();
+        if (trying) safe(() => house.duo?.say(`金色限定！困難模式第 ${it.reward.hardChapter} 章全破就能拿到✦`));
+        return;
+      }
       if (it.chapter > s.maxChapter()) { app.audio.sfx('tap'); bearSay(app, `「${it.name}」要到第 ${it.chapter} 章才會開賣喔～`); return; }
       app.audio.sfx('select');
       trying = trying === it.id ? null : it.id;
@@ -91,7 +105,7 @@ export default {
 
     function buy() {
       const it = FURNITURE.find(f => f.id === trying);
-      if (!it) return;
+      if (!it || it.price == null) return;
       if (s.buy(it.id)) {
         s.place(it.slot, it.id);
         app.audio.sfx('buy');

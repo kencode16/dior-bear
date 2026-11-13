@@ -1,9 +1,14 @@
-// 關卡畫面（C 擁有）：畫面名稱 'level'，params { levelId, seed? }。
-import { tileSVG, babySVG, snowSVG, crateSVG, lockSVG, chapterTheme } from '../art/tiles.js';
-import { bearSVG } from '../art/chars.js';
+// 關卡畫面（C 擁有）：畫面名稱 'level'，params { levelId, hard?, seed? }（board、levelDef 只給測試用）。
+// 美術、劇情模組用命名空間 import：別人新的 export 還沒加好時不會讓整個遊戲載入失敗。
+import * as tiles from '../art/tiles.js';
+import * as chars from '../art/chars.js';
 import { mountDuo } from '../ui/charactersView.js';
-import { LEVEL_TIPS } from '../data/story.js';
-import { BoardView } from './boardView.js';
+import * as story from '../data/story.js';
+import { BoardView, paintArt, giftArt } from './boardView.js';
+
+const { tileSVG, babySVG, snowSVG, crateSVG, lockSVG } = tiles;
+const chapterTheme = ch => { try { return (tiles.chapterTheme && tiles.chapterTheme(ch)) || {}; } catch (e) { console.error(e); return {}; } };
+const bearSVG = opts => { try { return chars.bearSVG ? chars.bearSVG(opts) : ''; } catch (e) { console.error(e); return ''; } };
 
 const DEFAULT_TIPS = {
   swap: '手指往旁邊滑，讓 3 個一樣的東西排成一排就能消掉喔！',
@@ -14,9 +19,12 @@ const DEFAULT_TIPS = {
   yarn: '被毛線纏住的東西不能移動，在旁邊消除就能解開。',
   honey: '蜂蜜黏黏會擴散！每一步都要記得清掉一點蜂蜜。',
   baby: '把熊寶寶送到最下面的小門，帶寶寶回家！',
+  paint: '消除的那一串只要碰到有蠟筆顏色的格子，整串都會塗上顏色！把整個棋盤塗滿就過關。',
+  gift: '在禮物盒旁邊消除、或用道具打它，就能拆開；打開會跳出一個特殊道具喔！',
 };
 const CHEERS = ['好香～好厲害！', '叮噹～太棒了！', '大不溜也在拍手！', '香香的連鎖！', '再來一次！'];
-const TARGET_NAME = { snow: '雪塊', crate: '木箱', yarn: '毛線團', honey: '蜂蜜' };
+const TARGET_NAME = { snow: '雪塊', crate: '木箱', yarn: '毛線團', honey: '蜂蜜', gift: '禮物盒' };
+const HARD_CHEERS = ['困難模式也難不倒我們！', '金色的星星在等我們～', '專心！一步一步來～'];
 
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -24,33 +32,58 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 let S = null;   // 目前這一局的狀態（unmount 時清掉）
 
 function goalIcon(goal) {
-  if (goal.type === 'collect') return tileSVG(goal.item);
-  if (goal.type === 'baby') return babySVG();
-  if (goal.type === 'clear') {
-    if (goal.target === 'snow') return snowSVG(1);
-    if (goal.target === 'crate') return crateSVG(1);
-    return lockSVG(goal.target);
-  }
+  try {
+    if (goal.type === 'collect') return tileSVG(goal.item);
+    if (goal.type === 'baby') return babySVG();
+    if (goal.type === 'paint') return paintIcon();
+    if (goal.type === 'clear') {
+      if (goal.target === 'snow') return snowSVG(1);
+      if (goal.target === 'crate') return crateSVG(1);
+      if (goal.target === 'gift') return giftArt(1);
+      if (goal.target === 'yarn' || goal.target === 'honey') return lockSVG(goal.target);
+    }
+  } catch (e) { console.error('目標圖示失敗', goal, e); }
   return '';
 }
+/** 塗色目標的小圖示：塗色底＋一枝蠟筆 */
+function paintIcon() {
+  const inner = paintArt().replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g transform="translate(6 10) scale(.8)">${inner}</g>` +
+    `<g transform="rotate(-38 70 40)"><rect x="58" y="6" width="22" height="58" rx="5" fill="#FF8FB0" stroke="#5A3A2E" stroke-width="4"/>` +
+    `<rect x="58" y="20" width="22" height="9" fill="#FFF4C2" stroke="#5A3A2E" stroke-width="3"/>` +
+    `<path d="M58 64 L69 86 L80 64 Z" fill="#FFD6E2" stroke="#5A3A2E" stroke-width="4" stroke-linejoin="round"/>` +
+    `<path d="M65 78 L69 86 L73 78 Z" fill="#E8668C"/></g></svg>`;
+}
 function goalName(goal, app) {
-  if (goal.type === 'collect') return app.config.ITEM_NAME[goal.item] || goal.item;
+  if (goal.type === 'collect') return (app.config.ITEM_NAME && app.config.ITEM_NAME[goal.item]) || goal.item;
   if (goal.type === 'baby') return '熊寶寶';
-  return TARGET_NAME[goal.target] || goal.target;
+  if (goal.type === 'paint') return '塗色格子';
+  return TARGET_NAME[goal.target] || goal.target || '目標';
+}
+/** 教學卡上的小圖示（障礙類教學才有） */
+function tipIcon(key) {
+  if (key === 'paint') return paintIcon();
+  if (key === 'gift') return giftArt(2);
+  if (['snow', 'crate', 'yarn', 'honey', 'baby'].includes(key)) return goalIcon(key === 'baby' ? { type: 'baby' } : { type: 'clear', target: key });
+  return '';
 }
 function remaining(goal) { return Math.max(0, (goal.need | 0) - (goal.done | 0)); }
 
 export default {
   async mount(root, params, app) {
-    const level = app.levelById(Number(params.levelId)) || app.levels[0];
+    const hard = !!params.hard;
+    const pickLevel = (id, h) => { try { return app.levelById(id, { hard: h }); } catch (e) { console.error(e); return null; } };
+    let level = params.levelDef || pickLevel(Number(params.levelId), hard) || pickLevel(1, hard) || app.levels[0];   // levelDef 只給測試用
     if (!level) { app.go('map'); return; }
+    if (hard && !level.isHard && app.config.hardLevelDef && !params.levelDef) level = app.config.hardLevelDef(level);
     const ch = level.chapter || app.config.chapterOfLevel(level.id);
     const chapter = app.config.chapterById(ch) || app.config.CHAPTERS[0];
     const theme = chapterTheme(ch) || {};
     const perfume = app.items.PERFUMES.find(p => p.id === app.save.perfume()) || app.items.PERFUMES[0];
-    const st = S = { app, level, root, timers: [], lowWarned: false, ended: false, destroyed: false };
+    const st = S = { app, level, root, hard, ch, timers: [], lowWarned: false, ended: false, destroyed: false };
 
     root.classList.add('g-screen');
+    root.classList.toggle('g-hardmode', hard);
     if (theme.bg) root.style.setProperty('--g-bg', theme.bg);   // 用 ::before 鋪滿整個視窗（電腦版兩側也一致）
     root.style.setProperty('--g-frame', theme.boardFrame || '#FFDCE6');
     root.style.setProperty('--g-accent', theme.accent || '#FF9EB5');
@@ -58,7 +91,7 @@ export default {
     root.innerHTML = `
       <div class="g-top">
         <button class="g-pause" aria-label="暫停"><i></i><i></i></button>
-        <div class="g-level"><span class="g-lv-no">第 ${level.id} 關</span><span class="g-lv-name">${esc(level.name || chapter.name)}</span></div>
+        <div class="g-level">${hard ? '<i class="g-hard">困難</i>' : ''}<span class="g-lv-no">第 ${level.id} 關</span><span class="g-lv-name">${esc(level.name || chapter.name)}</span></div>
         <div class="g-score">
           <div class="g-stars"><b class="g-st s1">★</b><b class="g-st s2">★</b><b class="g-st s3">★</b></div>
           <div class="g-bar"><i class="g-fill"></i><em class="g-mk m2"></em><em class="g-mk m3"></em></div>
@@ -112,7 +145,7 @@ export default {
     // 目標卡
     st.goalEls = (st.g.goals || []).map(goal => {
       const d = document.createElement('div');
-      d.className = 'g-goal';
+      d.className = 'g-goal g-goal-' + (goal.type === 'clear' ? goal.target : goal.type);
       d.innerHTML = `<span class="g-goal-icon">${goalIcon(goal)}</span><span class="g-goal-txt"><small>${esc(goalName(goal, app))}</small><b>${remaining(goal)}</b></span><i class="g-check">✓</i>`;
       st.el.goals.appendChild(d);
       return d;
@@ -140,7 +173,7 @@ export default {
     $('.g-pause').addEventListener('click', () => showPause(st));
     $('.g-skip').addEventListener('click', () => { if (st.board) { st.board.instant = true; st.board.fx.lowPower = true; st.board.fx.clear(); } });
 
-    app.audio.playMusic && app.audio.playMusic('level');
+    playLevelMusic(st);
     window.__game = makeDebug(st);
     await Promise.race([st.board.preload(), sleep(1500)]);
     if (st.destroyed) return;
@@ -197,7 +230,16 @@ function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classLi
 
 function react(st, kind) { try { st.duo && st.duo.react(kind); } catch (e) { console.error(e); } }
 function say(st, text, ms) { try { st.duo && st.duo.say && st.duo.say(text, ms); } catch (e) { console.error(e); } }
-function sfx(st, name, opts) { try { st.app.audio.sfx(name, opts); } catch (e) { console.error(e); } }
+function sfx(st, name, opts) {
+  try {
+    const a = st.app.audio;
+    if (Array.isArray(a.SFX_NAMES) && !a.SFX_NAMES.includes(name)) return;   // F 還沒加的音效安靜略過
+    a.sfx(name, opts);
+  } catch (e) { console.error(e); }
+}
+function playLevelMusic(st) {
+  try { st.app.audio.playMusic && st.app.audio.playMusic('level', { chapter: st.ch }); } catch (e) { console.error(e); }
+}
 
 // ---------------- 事件 → 聲音、表情、HUD ----------------
 function onEvent(st, ev) {
@@ -209,6 +251,7 @@ function onEvent(st, ev) {
     case 'swap': sfx(st, 'swap'); break;
     case 'swapBack': sfx(st, 'swapBack'); break;
     case 'clear':
+      st.lastWave = ev.wave || 1;
       sfx(st, 'pop', { wave: ev.wave || 1 });
       if ((ev.wave || 1) >= 3 && !st.cheered) { st.cheered = true; react(st, 'combo'); say(st, CHEERS[(Math.random() * CHEERS.length) | 0]); }
       break;
@@ -221,8 +264,17 @@ function onEvent(st, ev) {
     case 'obstacle':
       if (ev.kind === 'snow') sfx(st, 'snow');
       else if (ev.kind === 'crate') sfx(st, 'crate');
-      else if (!ev.left) sfx(st, 'unlock');
+      else if (ev.kind === 'gift') {
+        sfx(st, 'gift', { left: ev.left | 0, open: !ev.left });
+        if (!ev.left && !st.celebrating && !st.giftSaid) { st.giftSaid = true; react(st, 'special'); say(st, '禮物打開了！是什麼呢？'); }
+      }
+      else if ((ev.kind === 'yarn' || ev.kind === 'honey') && !ev.left) sfx(st, 'unlock');
       break;
+    case 'paint': {
+      const now = performance.now();
+      if (!st.paintT || now - st.paintT > 120) { st.paintT = now; sfx(st, 'paint', { wave: st.lastWave || 1, n: (ev.cells || []).length }); }
+      break;
+    }
     case 'honeySpread': sfx(st, 'honeySpread'); break;
     case 'babyHome': sfx(st, 'baby'); say(st, '寶寶回家囉～'); break;
     case 'shuffle': sfx(st, 'shuffle'); react(st, 'shuffle'); say(st, '洗一洗～'); break;
@@ -234,6 +286,7 @@ function onEvent(st, ev) {
 
 async function onSettled(st, res) {
   st.cheered = false;
+  st.giftSaid = false;
   updateHud(st);
   if (st.ended || !st.g) return;
   if (st.g.status === 'won') { st.ended = true; await winFlow(st); }
@@ -244,20 +297,24 @@ async function onSettled(st, res) {
 function showIntro(st) {
   const { app, level, g } = st;
   const ov = st.el.overlay;
-  const tipKey = level.tutorial;
-  const tip = tipKey ? ((LEVEL_TIPS && LEVEL_TIPS[tipKey]) || DEFAULT_TIPS[tipKey] || '') : '';
+  const tipKey = st.hard ? null : level.tutorial;
+  const tips = story.LEVEL_TIPS || {};
+  const tip = tipKey ? (tips[tipKey] || DEFAULT_TIPS[tipKey] || '') : '';
+  const tIcon = tip ? tipIcon(tipKey) : '';
   const ch = app.config.chapterById(level.chapter || app.config.chapterOfLevel(level.id)) || {};
-  const goals = (g.goals || []).map(goal => `<div class="g-ig"><span class="g-goal-icon">${goalIcon(goal)}</span><b>× ${goal.need}</b><small>${esc(goalName(goal, app))}</small></div>`).join('');
+  const goals = (g.goals || []).map(goal => `<div class="g-ig"><span class="g-goal-icon">${goalIcon(goal)}</span><b>× ${remaining(goal)}</b><small>${esc(goalName(goal, app))}</small></div>`).join('');
   ov.hidden = false;
   ov.className = 'g-overlay intro';
   ov.innerHTML = `
-    <div class="g-card g-intro">
+    <div class="g-card g-intro${st.hard ? ' hard' : ''}">
+      ${st.hard ? '<i class="g-hard big">困難</i>' : ''}
       <div class="g-chip">第 ${ch.id || ''} 章・${esc(ch.name || '')}</div>
       <h2>第 ${level.id} 關</h2>
       <p class="g-sub">${esc(level.name || '')}</p>
       <div class="g-intro-goals">${goals}</div>
       <p class="g-intro-moves">步數 <b>${g.movesLeft}</b></p>
-      ${tip ? `<div class="g-tip"><span class="g-tip-bear">${bearSVG({ expr: 'happy' })}</span><p>${esc(tip)}</p></div>` : ''}
+      ${st.hard ? '<p class="g-hard-note">步數更少、顏色更多，過關可以拿困難星星！</p>' : ''}
+      ${tip ? `<div class="g-tip"><span class="g-tip-bear">${bearSVG({ expr: 'happy' })}</span><p>${esc(tip)}</p>${tIcon ? `<span class="g-tip-icon">${tIcon}</span>` : ''}</div>` : ''}
       <button class="btn g-go" data-act="start">開始！</button>
     </div>`;
   ov.onclick = async ev => {
@@ -272,7 +329,7 @@ function showIntro(st) {
     st.board.busy = false;
     st.board.inputEnabled = true;
     st.board._poke();
-    say(st, level.id === 1 ? '一起來做早餐吧！' : '一起收集吧！');
+    say(st, st.hard ? HARD_CHEERS[(Math.random() * HARD_CHEERS.length) | 0] : (level.id === 1 ? '一起來做早餐吧！' : '一起收集吧！'));
   };
 }
 
@@ -304,14 +361,14 @@ function showPause(st) {
     if (act === 'sfx' || act === 'music') {
       const v = !app.save.settings()[act];
       app.save.setSetting(act, v);
-      if (act === 'sfx') app.audio.setSfx(v); else { app.audio.setMusic(v); if (v) app.audio.playMusic('level'); }
+      if (act === 'sfx') app.audio.setSfx(v); else { app.audio.setMusic(v); if (v) playLevelMusic(st); }
       b.classList.toggle('on', v); b.querySelector('i').textContent = v ? '開' : '關';
       sfx(st, 'tap');
       return;
     }
     sfx(st, 'tap');
     if (act === 'resume') { ov.hidden = true; ov.onclick = null; st.board.inputEnabled = wasEnabled; st.board._poke(); }
-    else if (act === 'retry') app.go('level', { levelId: st.level.id });
+    else if (act === 'retry') retry(st);
     else if (act === 'map') app.go('map');
   };
 }
@@ -343,41 +400,88 @@ async function winFlow(st) {
   if (st.destroyed) return;
   const score = g.score | 0;
   const stars = Math.max(1, g.starsFor ? g.starsFor(score) : 1);
-  const rec = app.save.recordLevel(level.id, stars, score) || {};
-  st.result = { stars, score, ...rec };
-  showResult(st, stars, score, rec);
+  let rec = {};
+  try {
+    if (st.hard && app.save.recordHard) rec = app.save.recordHard(level.id, stars, score) || {};
+    else rec = app.save.recordLevel(level.id, stars, score) || {};
+  } catch (e) { console.error('存檔失敗', e); }
+  st.result = { stars, score, hard: st.hard, ...rec };
+  // 金色限定的圖（家具、香水在 collections.js；用動態載入，對方檔案有問題也不會拖垮結算）
+  let rewardsHtml = '';
+  if (Array.isArray(rec.rewards) && rec.rewards.length) {
+    try { rewardsHtml = await rewardCards(app, rec.rewards); } catch (e) { console.error('金色限定圖示失敗', e); }
+    if (st.destroyed) return;
+  }
+  showResult(st, stars, score, rec, rewardsHtml);
 }
 
-function showResult(st, stars, score, rec) {
+/** 金色限定小卡：換裝用 itemIconSVG、家具用 furnitureSVG、香水用 perfumeBottleSVG；名稱從 app.items 查 */
+async function rewardCards(app, ids) {
+  let col = {};
+  try { col = await import('../art/collections.js'); } catch (e) { console.error('collections.js 載入失敗', e); }
+  const I = app.items;
+  const isIn = (list, id) => Array.isArray(list) && list.some(x => x.id === id);
+  const cards = ids.map(id => {
+    const it = (I.itemById && I.itemById(id)) || (I.PERFUMES || []).find(p => p.id === id) || { id, name: id };
+    let svg = '', kind = '';
+    try {
+      if (isIn(I.PERFUMES, id)) { kind = '香水'; svg = col.perfumeBottleSVG ? col.perfumeBottleSVG(id) : ''; }
+      else if (isIn(I.FURNITURE, id)) { kind = '家具'; svg = col.furnitureSVG ? col.furnitureSVG(id) : ''; }
+      else { kind = isIn(I.DOG_ITEMS, id) ? '大不溜造型' : '換裝'; svg = chars.itemIconSVG ? chars.itemIconSVG(id) : ''; }
+    } catch (e) { console.error('金色限定圖示失敗', id, e); }
+    if (!svg) svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 8 L61 38 L93 38 L67 57 L77 89 L50 70 L23 89 L33 57 L7 38 L39 38 Z" fill="#F7C548" stroke="#B9861C" stroke-width="4" stroke-linejoin="round"/></svg>';
+    return `<div class="g-rw"><span class="g-rw-icon">${svg}</span><b>${esc(it.name || id)}</b><small>${kind}</small></div>`;
+  }).join('');
+  return `<div class="g-reward"><p class="g-rw-title">拿到金色限定！</p><div class="g-rw-list">${cards}</div></div>`;
+}
+
+function retry(st) {
+  const p = { levelId: st.level.id };
+  if (st.hard) p.hard = true;
+  st.app.go('level', p);
+}
+
+function showResult(st, stars, score, rec, rewardsHtml = '') {
   const { app, level } = st;
   const ov = st.el.overlay;
-  const total = app.levels.length;
-  const hasNext = level.id < total && !!app.levelById(level.id + 1);
+  const total = Math.min(app.config.TOTAL_LEVELS || Infinity, app.levels.length);
+  const next = level.id + 1;
+  const nextExists = level.id < total && !!app.levelById(next);
   const chapterEnd = level.id % app.config.LEVELS_PER_CHAPTER === 0;
+  // 普通版：章末不給下一關（回地圖播章末劇情）；困難版：沒有劇情，只看 canPlayHard
+  let hasNext;
+  if (st.hard) { hasNext = nextExists; try { hasNext = hasNext && !!(app.save.canPlayHard && app.save.canPlayHard(next)); } catch (e) { hasNext = false; } }
+  else hasNext = nextExists && !chapterEnd;
   const bestTxt = rec.newBest ? '<span class="g-best">新紀錄！</span>' : '';
   const earned = rec.newStars > 0 ? `<p class="g-earn">獲得 <b>${rec.newStars}</b> 顆星星 <span>★</span></p>` : `<p class="g-earn dim">這關的星星都拿過了</p>`;
   ov.hidden = false;
   ov.className = 'g-overlay result';
   ov.innerHTML = `
-    <div class="g-card g-win">
-      <div class="g-ribbon">過關！</div>
+    <div class="g-card g-win${st.hard ? ' hard' : ''}">
+      <div class="g-ribbon">${st.hard ? '困難過關！' : '過關！'}</div>
       <div class="g-bigstars">${[1, 2, 3].map(i => `<span class="g-bs" data-i="${i}">★</span>`).join('')}</div>
       <p class="g-final">分數 <b>${score.toLocaleString('en-US')}</b>${bestTxt}</p>
       ${earned}
+      ${rewardsHtml}
       <div class="g-btns">
-        ${hasNext && !chapterEnd ? '<button class="btn" data-act="next">下一關</button>' : ''}
-        <button class="btn ${hasNext && !chapterEnd ? 'ghost' : ''}" data-act="map">回地圖</button>
+        ${hasNext ? '<button class="btn" data-act="next">下一關</button>' : ''}
+        <button class="btn ${hasNext ? 'ghost' : ''}" data-act="map">回地圖</button>
       </div>
     </div>`;
   const bs = ov.querySelectorAll('.g-bs');
   for (let i = 0; i < stars; i++) {
     st.timers.push(setTimeout(() => { bs[i].classList.add('on'); sfx(st, 'star', { n: i + 1 }); }, 350 + i * 420));
   }
+  if (rewardsHtml) {
+    const rw = ov.querySelector('.g-reward');
+    st.timers.push(setTimeout(() => { if (rw) rw.classList.add('show'); sfx(st, 'reward'); }, 450 + stars * 420));
+  }
   ov.onclick = ev => {
     const b = ev.target.closest('[data-act]');
     if (!b) return;
     sfx(st, 'tap');
-    if (b.dataset.act === 'next') app.go('level', { levelId: level.id + 1 });
+    if (b.dataset.act === 'next') app.go('level', st.hard ? { levelId: next, hard: true } : { levelId: next });
+    else if (st.hard) app.go('map', { justCleared: level.id, firstClear: !!rec.firstClear, hard: true });
     else app.go('map', { justCleared: level.id, firstClear: !!rec.firstClear });
   };
 }
@@ -407,7 +511,7 @@ async function loseFlow(st) {
     const b = ev.target.closest('[data-act]');
     if (!b) return;
     sfx(st, 'tap');
-    if (b.dataset.act === 'retry') app.go('level', { levelId: st.level.id });
+    if (b.dataset.act === 'retry') retry(st);
     else app.go('map');
   };
 }
@@ -417,6 +521,8 @@ function makeDebug(st) {
   return {
     _st: st,
     get g() { return st.g; },
+    get hard() { return st.hard; },
+    get result() { return st.result || null; },
     get board() { return st.board; },
     fps: () => st.board ? st.board.fps : 0,
     perf: () => st.board ? st.board.perfStats() : null,

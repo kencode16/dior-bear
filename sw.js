@@ -2,7 +2,7 @@
 // 筆電沒開伺服器時，iPhone 主畫面上的遊戲仍可用快取離線玩。
 // ⚠ 新增遊戲檔案時，請把路徑加進 PRECACHE（沒加的檔案第一次載入後也會被執行期快取，但離線首次啟動可能缺檔）。
 // ⚠ 改了快取策略或想強制清快取時，把 VERSION 加 1。
-const VERSION = 'v3';
+const VERSION = 'v4';   // v1.2（第 5、6 章＋困難模式）
 const CACHE = `dior-bear-${VERSION}`;
 const PRECACHE = [
   './', 'index.html', 'manifest.webmanifest',

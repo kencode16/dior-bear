@@ -1,4 +1,4 @@
-// 香水櫃：梳妝台上 6 瓶香水。點開看小卡，選「今天噴這瓶」。
+// 香水櫃：梳妝台上 9 瓶香水（三層架子，每層 3 瓶；黃金丁噹香在最下層、金色底座）。點開看小卡，選「今天噴這瓶」。
 import { perfumeBottleSVG } from '../art/collections.js';
 import { PERFUME_CARDS } from '../data/story.js';
 import { mountDuo } from './charactersView.js';
@@ -7,11 +7,15 @@ import { topBar, janitor, svgImg, safe, esc, modal, perfumeColor } from './uikit
 let j = null, bar = null, duo = null;
 
 function unlockHint(app, p) {
-  if (p.unlock.start) return '一開始就有';
-  if (p.id === 'p5') return '完成全部冒險後調出';
-  const lv = p.unlock.level;
+  const u = p.unlock || {};
+  if (u.start) return '一開始就有';
+  if (u.hardChapter) return '困難模式全部完成後調出';
+  if (p.id === 'p4' || p.id === 'p5') return '完成食衣住行冒險後調出';
+  const lv = u.level;
+  if (!lv) return '繼續冒險就會調出來';
   return `第 ${Math.ceil(lv / app.config.LEVELS_PER_CHAPTER)} 章調出（通過第 ${lv} 關）`;
 }
+const SHELF = 3;   // 每層幾瓶
 
 export default {
   async mount(root, params, app) {
@@ -31,8 +35,7 @@ export default {
       </div>
       <div class="u-vanity u-enter" style="--d:1">
         <div class="u-vanity-mirror"><span class="u-vanity-title">丁噹熊的梳妝台</span></div>
-        <div class="u-vanity-shelf" data-row="0"></div>
-        <div class="u-vanity-shelf" data-row="1"></div>
+        <div class="u-vanity-shelves"></div>
         <div class="u-vanity-legs"><i></i><i></i></div>
       </div>`;
     root.appendChild(body);
@@ -44,17 +47,17 @@ export default {
     function render() {
       const cur = s.perfume();
       $('.u-pf-cur').textContent = PERFUMES.find(p => p.id === cur)?.name || '';
-      const rows = [PERFUMES.slice(0, 3), PERFUMES.slice(3, 6)];
-      rows.forEach((row, ri) => {
-        $(`.u-vanity-shelf[data-row="${ri}"]`).innerHTML = row.map(p => {
-          const un = s.perfumeUnlocked(p);
-          const isNew = un && !p.unlock.start && !s.seen('pfv_' + p.id);
-          return `<button class="u-bottle${un ? '' : ' locked'}${p.id === cur ? ' cur' : ''}" data-id="${p.id}" style="--pc:${p.color}">` +
-            `${p.id === cur ? '<span class="u-bottle-crown">今天</span>' : ''}${isNew ? '<span class="u-new">NEW</span>' : ''}` +
-            `<span class="u-bottle-art">${safe(() => svgImg(perfumeBottleSVG(p.id), un ? '' : 'sil', p.name))}</span>` +
-            `<span class="u-bottle-name">${un ? esc(p.name) : '？？？'}</span></button>`;
-        }).join('');
-      });
+      const rows = [];
+      for (let i = 0; i < PERFUMES.length; i += SHELF) rows.push(PERFUMES.slice(i, i + SHELF));
+      $('.u-vanity-shelves').innerHTML = rows.map((row, ri) => `<div class="u-vanity-shelf" data-row="${ri}">` + row.map(p => {
+        const un = s.perfumeUnlocked(p);
+        const isNew = un && !p.unlock.start && !s.seen('pfv_' + p.id);
+        const gold = !!p.unlock.hardChapter;
+        return `<button class="u-bottle${un ? '' : ' locked'}${p.id === cur ? ' cur' : ''}${gold ? ' gold' : ''}" data-id="${p.id}" style="--pc:${p.color}">` +
+          `${p.id === cur ? '<span class="u-bottle-crown">今天</span>' : ''}${isNew ? '<span class="u-new">NEW</span>' : ''}` +
+          `<span class="u-bottle-art">${safe(() => svgImg(perfumeBottleSVG(p.id), un ? '' : 'sil', p.name))}</span>` +
+          `<span class="u-bottle-name">${un ? esc(p.name) : (gold ? '✦ 金色限定' : '？？？')}</span></button>`;
+      }).join('') + `</div>`).join('');
     }
 
     function openCard(p) {
